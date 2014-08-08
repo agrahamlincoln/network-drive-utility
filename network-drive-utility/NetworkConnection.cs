@@ -7,10 +7,40 @@ using System.Xml.Serialization;
 
 namespace network_drive_utility
 {
+    /// <summary>Class wrapper for the Network Connection to store a list
+    /// </summary>
+    /// <remarks>This is primarily used for the serialization process</remarks>
+    [XmlRoot("ArrayOfNetworkConnection")]
+    public class NetworkConnectionList
+    {
+        [XmlArrayItem()]
+        public List<NetworkConnection> Items { get; set; }
+
+        #region Constructors
+
+        /// <summary>No-Arg Constructor
+        /// </summary>
+        public NetworkConnectionList()
+        {
+            Items = new List<NetworkConnection>();
+        }
+
+        /// <summary>All-Args Constructor
+        /// </summary>
+        /// <param name="list">List to set as instance</param>
+        public NetworkConnectionList(List<NetworkConnection> list)
+        {
+            Items = list;
+        }
+
+        #endregion
+    }
+
+
     /// <summary>Stores information about a Network Connection, Mimics the structure of Windows WMI queries from root\CIMV2\Win32_NetworkConnection
     /// </summary>
-    [XmlElement("NetworkConnection")]
-    class NetworkConnection
+    [XmlRoot("NetworkConnection")]
+    public class NetworkConnection
     {
         //Class Variables
         [XmlElement("LocalName")]

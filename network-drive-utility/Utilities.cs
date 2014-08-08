@@ -123,14 +123,14 @@ namespace network_drive_utility
         /// <typeparam name="T">Any type of serializable object stored in a list</typeparam>
         /// <param name="xmlString">string of XML objects to deserialize</param>
         /// <returns>List of Objects deserialized from the string</returns>
-        public static List<T> Deserialize<T>(string xmlString)
+        public static T Deserialize<T>(string xmlString)
         {
-            List<T> result;
+            T result;
 
             XmlSerializer deserializer = new XmlSerializer(typeof(T));
             using (TextReader textReader = new StringReader(xmlString))
             {
-                result = (List<T>)deserializer.Deserialize(textReader);
+                result = (T)deserializer.Deserialize(textReader);
             }
 
             return result;
@@ -141,7 +141,7 @@ namespace network_drive_utility
         /// <typeparam name="T">Any type of serializable object stored in a list</typeparam>
         /// <param name="objList">List of serializable objects</param>
         /// <param name="filePath">Full Path of XML file to write to</param>
-        public static void SerializeToFile<T>(List<T> objList, string filePath)
+        public static void SerializeToFile<T>(T objList, string filePath)
         {
             XmlSerializer serializer = new XmlSerializer(objList.GetType());
             using (StreamWriter sw = new StreamWriter(filePath))

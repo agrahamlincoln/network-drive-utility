@@ -11,12 +11,12 @@ namespace network_drive_utility
 {
     /// <summary>Primary class of the application, handles higher level program logic.
     /// </summary>
-    class Main
+    class Program
     {
         /// <summary>Main Entrypoint for the Program
         /// </summary>
         /// <param name="args">Program arguments</param>
-        public void Main(string[] args)
+        public static void Main(string[] args)
         {
             // 1: Get list of currently mapped drives from WMI
             List<NetworkConnection> mappedDrives = NetworkConnection.ListCurrentlyMappedDrives();
@@ -36,22 +36,21 @@ namespace network_drive_utility
             {
                 //XML file exists, read from file
                 string xmlFile = Utilities.readFile(Users_XML_FilePath);
-                List<NetworkConnection> userDrives = Utilities.Deserialize<NetworkConnection>(xmlFile);
+                NetworkConnectionList userDrives = Utilities.Deserialize<NetworkConnectionList>(xmlFile);
 
                 //Combine the mapped list and the xml list
-                allUserDrives = userDrives.Union(mappedDrives, new NetworkConnectionComparer()).ToList();
+                allUserDrives = userDrives.Items.Union(mappedDrives, new NetworkConnectionComparer()).ToList();
             }
             else
             {
-                //Users.XML does not exist; create one
-                File.Create(Users_XML_FilePath);
-
+                //There is no XML file, so we can skip the deserialization
                 //all of the user drives are all of the ones currently mapped.
                 allUserDrives = mappedDrives;
             }
+            NetworkConnectionList listobj_allUserDrives = new NetworkConnectionList(allUserDrives);
 
             // 4: Serialize the list & Write to XML file
-            Utilities.SerializeToFile<NetworkConnection>(allUserDrives, Users_XML_FilePath);
+            Utilities.SerializeToFile<NetworkConnectionList>(listobj_allUserDrives, Users_XML_FilePath);
         }
 
 
