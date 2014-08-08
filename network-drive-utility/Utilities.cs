@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml.Serialization;
 
 namespace network_drive_utility
 {
@@ -115,6 +116,38 @@ namespace network_drive_utility
             str = file.ReadToEnd();
             file.Close();
             return str;
+        }
+
+        /// <summary>Generic List Deserializer
+        /// </summary>
+        /// <typeparam name="T">Any type of serializable object stored in a list</typeparam>
+        /// <param name="xmlString">string of XML objects to deserialize</param>
+        /// <returns>List of Objects deserialized from the string</returns>
+        public static List<T> Deserialize<T>(string xmlString)
+        {
+            List<T> result;
+
+            XmlSerializer deserializer = new XmlSerializer(typeof(T));
+            using (TextReader textReader = new StringReader(xmlString))
+            {
+                result = (List<T>)deserializer.Deserialize(textReader);
+            }
+
+            return result;
+        }
+
+        /// <summary>Serializes a list of objects and writes the serialized list to a XML file specified
+        /// </summary>
+        /// <typeparam name="T">Any type of serializable object stored in a list</typeparam>
+        /// <param name="objList">List of serializable objects</param>
+        /// <param name="filePath">Full Path of XML file to write to</param>
+        public static void SerializeToFile<T>(List<T> objList, string filePath)
+        {
+            XmlSerializer serializer = new XmlSerializer(objList.GetType());
+            using (StreamWriter sw = new StreamWriter(filePath))
+            {
+                serializer.Serialize(sw, objList);
+            }
         }
     }
 }

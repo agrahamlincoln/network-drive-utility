@@ -3,17 +3,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Management;
 using System.Text;
+using System.Xml.Serialization;
 
 namespace network_drive_utility
 {
     /// <summary>Stores information about a Network Connection, Mimics the structure of Windows WMI queries from root\CIMV2\Win32_NetworkConnection
     /// </summary>
+    [XmlElement("NetworkConnection")]
     class NetworkConnection
     {
         //Class Variables
+        [XmlElement("LocalName")]
         public string LocalName { get; set; }
+        [XmlElement("RemoteName")]
         public string RemoteName { get; set; }
+        [XmlElement("UserName")]
         public string UserName { get; set; }
+        [XmlElement("Persistent")]
         public Boolean Persistent { get; set; }
 
         #region Constructors
@@ -90,6 +96,37 @@ namespace network_drive_utility
             }
 
             return drivesFromWMI;
+        }
+
+        /// <summary>To String method.
+        /// </summary>
+        /// <returns>Local Drive Letter + Full UNC Path</returns>
+        public string toString()
+        {
+            string str;
+            str = LocalName + " " + RemoteName;
+            return str;
+        }
+    }
+
+    /// <summary>Class used to compare two Network Connection objects
+    /// </summary>
+    class NetworkConnectionComparer : IEqualityComparer<NetworkConnection>
+    {
+        /// <summary>Class used to compare two Network Connection Objects
+        /// </summary>
+        /// <remarks>Verifies the RemoteName is match, does not care about UserName, Persistent, or LocalName</remarks>
+        /// <param name="drive1">NetworkConnection object to Compare</param>
+        /// <param name="drive2">NetworkConnection object to Compare</param>
+        /// <returns>Boolean value of whether the objects are equal or not.</returns>
+        public bool Equals(NetworkConnection drive1, NetworkConnection drive2)
+        {
+            return (drive1.RemoteName == drive2.RemoteName);
+        }
+
+        public int GetHashCode(NetworkConnection drive)
+        {
+            return drive.RemoteName.GetHashCode();
         }
     }
 }
