@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -14,6 +15,7 @@ namespace network_drive_utility
     /// <remarks>Excludes: Anything that could not be dropped into another application without modification</remarks>
     class Utilities
     {
+        #region Log writing
         const string TIMESTAMP_FORMAT = "MM/dd HH:mm:ss ffff";
 
         /// <summary>Returns a timestamp in string format.
@@ -49,74 +51,116 @@ namespace network_drive_utility
                 sWriter.Close();
             }
         }
+        #endregion
 
-        /// <summary>Matches two strings, ignoring case.
+        #region .NET Checking
+
+        /// <summary>Checks the current machine for .NET Installations
         /// </summary>
-        /// <param name="str1">String to compare</param>
-        /// <param name="str2">String to compare</param>
-        /// <returns>Boolean value of whether strings match or not.</returns>
-        public static bool matchString_IgnoreCase(string str1, string str2)
+        /// <returns>Boolean value representing whether .NET 3.5 or greater is installed or not.</returns>
+        public static bool HasNet35()
         {
-            bool isMatch = false;
-            if (str1.Equals(str2, StringComparison.OrdinalIgnoreCase))
+            bool returnValue = false;
+            try
             {
-                isMatch = true;
+                List<string> versions = GetVersionFromRegistry();
+                Regex netVersion = new Regex("(v3\\.5|v4.0|v4)+");
+
+                foreach (string ver in versions)
+                {
+                    if (netVersion.IsMatch(ver))
+                    {
+                        Utilities.writeLog(".NET version " + ver + " is installed.");
+                        returnValue = true;
+                        break;
+                    }
+                }
+                if (returnValue == false)
+                    Utilities.writeLog(".NET 3.5 must be installed to run this.");
+                return returnValue;
             }
-            return isMatch;
-        }
-
-        /// <summary>Generates a List of all 26 Uppercase letters in the alphabet.
-        /// </summary>
-        /// <returns>char List of all letters in the alphabet (Uppercase)</returns>
-        public static List<char> getAlphabetUppercase()
-        {
-            // Allocate space for alphabet
-            List<char> alphabet = new List<char>(26);
-
-            // increment from ASCII values for A-Z
-            for (int i = 65; i < 91; i++)
+            catch (Exception e)
             {
-                // Add uppercase letters to possible drive letters
-                alphabet.Add(Convert.ToChar(i));
-            }
-            return alphabet;
-        }
-
-        /// <summary>Parses the first single letterfrom a string
-        /// </summary>
-        /// <param name="str">string to parse</param>
-        /// <returns>The first alphabetical character in the string</returns>
-        public static char parseSingleLetter(string str)
-        {
-            Regex singleLetter = new Regex("^([A-z])");
-
-            //validate driveLetter string parameter
-            if (singleLetter.IsMatch(str))
-            {
-                //get first character only
-                str = singleLetter.Match(str).ToString();
-            }
-            else
-            {
-                throw new ArgumentException("Error: No letters found in this string.");
+                Utilities.writeLog("Could not query registry for .NET Versions" + e.ToString());
+                return false;
             }
 
-            return Convert.ToChar(str);
         }
 
-        /// <summary>Reads an entire file.
+        /// <summary>Checks registry on this machine for keys added during .NET installs.
         /// </summary>
-        /// <param name="fullPath">Full UNC Path of the file</param>
-        /// <returns>string of the entire file</returns>
-        public static string readFile(string fullPath)
+        /// <returns>string List of .NET versions installed.</returns>
+        public static List<string> GetVersionFromRegistry()
         {
-            string str;
-            //Read json from file on network
-            StreamReader file = new StreamReader(fullPath);
-            str = file.ReadToEnd();
-            file.Close();
-            return str;
+            List<string> versions = new List<string>();
+
+            // Opens the registry key for the .NET Framework entry. 
+            using (RegistryKey ndpKey =
+                RegistryKey.OpenRemoteBaseKey(RegistryHive.LocalMachine, "").
+                OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP\"))
+            {
+                // As an alternative, if you know the computers you will query are running .NET Framework 4.5  
+                // or later, you can use: 
+                // using (RegistryKey ndpKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine,  
+                // RegistryView.Registry32).OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP\"))
+                foreach (string versionKeyName in ndpKey.GetSubKeyNames())
+                {
+                    if (versionKeyName.StartsWith("v"))
+                    {
+
+                        RegistryKey versionKey = ndpKey.OpenSubKey(versionKeyName);
+                        string name = (string)versionKey.GetValue("Version", "");
+                        string sp = versionKey.GetValue("SP", "").ToString();
+                        string install = versionKey.GetValue("Install", "").ToString();
+                        if (install == "")
+                        { //no install info, must be later.
+                            //writeLog(versionKeyName + "  " + name);
+                            versions.Add(versionKeyName);
+                        }
+                        else
+                        {
+                            if (sp != "" && install == "1")
+                            {
+                                //writeLog(versionKeyName + "  " + name + "  SP" + sp);
+                                versions.Add(versionKeyName);
+                            }
+
+                        }
+                        if (name != "")
+                        {
+                            continue;
+                        }
+                        foreach (string subKeyName in versionKey.GetSubKeyNames())
+                        {
+                            RegistryKey subKey = versionKey.OpenSubKey(subKeyName);
+                            name = (string)subKey.GetValue("Version", "");
+                            if (name != "")
+                                sp = subKey.GetValue("SP", "").ToString();
+                            install = subKey.GetValue("Install", "").ToString();
+                            if (install == "")
+                            { //no install info, must be later.
+                                //writeLog(versionKeyName + "  " + name);
+                            }
+                            else
+                            {
+                                if (sp != "" && install == "1")
+                                {
+                                    //writeLog("  " + subKeyName + "  " + name + "  SP" + sp);
+                                }
+                                else if (install == "1")
+                                {
+                                    //writeLog("  " + subKeyName + "  " + name);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return versions;
         }
+        #endregion
+
+        #region XML (de)Serializers
 
         /// <summary>Generic List Deserializer
         /// </summary>
@@ -149,5 +193,26 @@ namespace network_drive_utility
                 serializer.Serialize(sw, objList);
             }
         }
+
+        #endregion
+
+        #region Miscellaneous
+
+        /// <summary>Reads an entire file.
+        /// </summary>
+        /// <param name="fullPath">Full UNC Path of the file</param>
+        /// <returns>string of the entire file</returns>
+        public static string readFile(string fullPath)
+        {
+            string str;
+            //Read json from file on network
+            using (StreamReader file = new StreamReader(fullPath))
+            {
+                str = file.ReadToEnd();
+            }
+            return str;
+        }
+
+        #endregion
     }
 }

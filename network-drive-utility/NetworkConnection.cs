@@ -122,7 +122,7 @@ namespace network_drive_utility
             }
             catch (ManagementException e)
             {
-                Utilities.writeLog("An error occurred while querying for WMI data.\nCall Stack: " + e.Message);
+                throw new ManagementException("An error occurred while querying for WMI data.\nCall Stack: " + e.Message);
             }
 
             return drivesFromWMI;
