@@ -32,7 +32,7 @@ namespace network_drive_utility
         /// <param name="message"></param>
         public static void writeLog(string message)
         {
-            string logLocation = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\" + System.AppDomain.CurrentDomain.FriendlyName;
+            string logLocation = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\" + System.Diagnostics.Process.GetCurrentProcess().ProcessName;
 
             if (!System.IO.File.Exists(logLocation))
             {

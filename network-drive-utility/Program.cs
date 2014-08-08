@@ -13,28 +13,35 @@ namespace network_drive_utility
     /// </summary>
     class Program
     {
+        private static bool isSilent;
+
         /// <summary>Main Entrypoint for the Program
         /// </summary>
         /// <param name="args">Program arguments</param>
         public static void Main(string[] args)
         {
-            // 1: Get list of currently mapped drives from WMI
+            //Determine whether program is running silently or not.
+            if (args.Length != 0)
+            {
+                isSilent = (args[0] == "silent" ? true : false);
+            }
+
+            output("1: Get list of currently mapped drives from WMI");
             List<NetworkConnection> mappedDrives = NetworkConnection.ListCurrentlyMappedDrives();
             List<NetworkConnection> allUserDrives;
 
-            // 2: Get currently logged in user
+            output("2: Get currently logged in user");
             // Note: The Drive Map users are stored in each NetworkConnection object
-            String currentUser = Environment.UserName;
+            string currentUser = Environment.UserName;
+            output("Currently Logged in User: " + currentUser);
 
-            // 3: Get User's fileshares from XML
-
-            // 3a: Check if the file exists
+            output("3: Get User's fileshares from XML");
             AppSettingsReader appConfig = new AppSettingsReader();
             string Users_XML_FilePath = appConfig.GetValue("userXMLPath", typeof(string)).ToString();
 
             if (File.Exists(Users_XML_FilePath))
             {
-                //XML file exists, read from file
+                output("XML file exists");
                 string xmlFile = Utilities.readFile(Users_XML_FilePath);
                 NetworkConnectionList userDrives = Utilities.Deserialize<NetworkConnectionList>(xmlFile);
 
@@ -43,17 +50,35 @@ namespace network_drive_utility
             }
             else
             {
-                //There is no XML file, so we can skip the deserialization
+                output("XML file does not exist");
                 //all of the user drives are all of the ones currently mapped.
                 allUserDrives = mappedDrives;
             }
+
+            foreach (NetworkConnection drive in allUserDrives)
+            {
+                output(drive.toString());
+            }
+
             NetworkConnectionList listobj_allUserDrives = new NetworkConnectionList(allUserDrives);
 
-            // 4: Serialize the list & Write to XML file
+            output("4: Serialize the list & Write to XML file");
             Utilities.SerializeToFile<NetworkConnectionList>(listobj_allUserDrives, Users_XML_FilePath);
         }
 
-
-
+        /// <summary>Standard program output method, determines where to direct output
+        /// </summary>
+        /// <param name="message">Output Message</param>
+        public static void output(string message)
+        {
+            if (isSilent)
+            {
+                Utilities.writeLog(message);
+            }
+            else
+            {
+                Console.WriteLine(message);
+            }
+        }
     }
 }

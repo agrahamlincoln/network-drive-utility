@@ -134,7 +134,7 @@ namespace network_drive_utility
         public string toString()
         {
             string str;
-            str = LocalName + " " + RemoteName;
+            str = "=====\n" + LocalName + " " + RemoteName + "\nUser: " + UserName + " Persistent: " + (Persistent ? "Yes" : "No");
             return str;
         }
     }
