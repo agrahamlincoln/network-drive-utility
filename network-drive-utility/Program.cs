@@ -33,61 +33,115 @@ namespace network_drive_utility
             }
             else
             {
-                output("1: Get list of currently mapped drives from WMI");
-                List<NetworkConnection> mappedDrives;
+                List<NetworkConnection> allDrives;
+
+                output("\n1: Get list of currently mapped drives from WMI");
+                List<NetworkConnection> mapDrives = getMappedDrives();
+
+                output("\n2: Get Fileshares from XML");
+                //get filepath from app.config file
+                AppSettingsReader appConfig = new AppSettingsReader();
+                string XML_FilePath;
                 try
                 {
-                    mappedDrives = NetworkConnection.ListCurrentlyMappedDrives();
+                    XML_FilePath = appConfig.GetValue("userXMLPath", typeof(string)).ToString();
                 }
-                catch (Exception e)
+                catch
                 {
-                    output(e.ToString());
-                    mappedDrives = new List<NetworkConnection>();
+                    output("App.Config is missing... Defaulting to User's AppData folder");
+                    XML_FilePath = Utilities.appDataPath() + ".xml";
                 }
-                List<NetworkConnection> allUserDrives;
 
-                output("2: Get currently logged in user");
-                // Note: The Drive Map users are stored in each NetworkConnection object
-                string currentUser = Environment.UserName;
-                output("Currently Logged in User: " + currentUser);
+                //get the list of XML drives from the file path
+                List<NetworkConnection> xmlDrives = getXMLDrives(XML_FilePath);
 
-                output("3: Get User's fileshares from XML");
-                AppSettingsReader appConfig = new AppSettingsReader();
-                string Users_XML_FilePath = appConfig.GetValue("userXMLPath", typeof(string)).ToString();
-
-                if (File.Exists(Users_XML_FilePath))
+                output("\n3: Generate list of all known Network Drives");
+                if (xmlDrives.Count > 0)
                 {
-                    output("XML file exists");
-                    string xmlFile = Utilities.readFile(Users_XML_FilePath);
-                    NetworkConnectionList userDrives = Utilities.Deserialize<NetworkConnectionList>(xmlFile);
-
-                    //Combine the mapped list and the xml list
-                    allUserDrives = userDrives.Items.Union(mappedDrives, new NetworkConnectionComparer()).ToList();
+                    //Combine the mapped drives and the xml drives
+                    allDrives = xmlDrives.Union(mapDrives, new NetworkConnectionComparer()).ToList();
                 }
                 else
                 {
-                    output("XML file does not exist");
-                    //all of the user drives are all of the ones currently mapped.
-                    allUserDrives = mappedDrives;
+                    //only mapped drives are available
+                    allDrives = mapDrives;
                 }
 
-                if (allUserDrives.Count > 0)
+                output("\n4: Writing the list to file");
+                if (allDrives.Count > 0)
                 {
-                    foreach (NetworkConnection drive in allUserDrives)
+                    foreach (NetworkConnection drive in allDrives)
                     {
                         output(drive.toString());
                     }
 
-                    NetworkConnectionList listobj_allUserDrives = new NetworkConnectionList(allUserDrives);
+                    NetworkConnectionList listobj_allUserDrives = new NetworkConnectionList(allDrives);
 
-                    output("4: Serialize the list & Write to XML file");
-                    Utilities.SerializeToFile<NetworkConnectionList>(listobj_allUserDrives, Users_XML_FilePath);
+                    output("\n4: Serialize the list & Write to XML file");
+                    try
+                    {
+                        Utilities.SerializeToFile<NetworkConnectionList>(listobj_allUserDrives, XML_FilePath);
+                    }
+                    catch
+                    {
+                        output("Error writing to file. The xml file has not been saved.");
+                    }
                 }
                 else
                 {
                     output("No Fileshares found.");
                 }
             }
+        }
+
+        #region Supplemental Methods
+
+        /// <summary>Generates a list of all network connections from the XML file
+        /// </summary>
+        /// <returns>Returns list of all network connections from XML file; Returns empty list if file doesnt exist</returns>
+        private static List<NetworkConnection> getXMLDrives(string filePath)
+        {
+            List<NetworkConnection> xmlDrives = new List<NetworkConnection>();
+            try
+            {
+                if (File.Exists(filePath))
+                {
+                    output("XML file exists");
+                    string xmlFile = Utilities.readFile(filePath);
+                    xmlDrives = Utilities.Deserialize<NetworkConnectionList>(xmlFile).Items.ToList();
+                }
+                else
+                {
+                    output("XML file does not exist");
+                }
+            }
+            catch
+            {
+                output("Could not locate/access the XML File in the path: \n" + filePath);
+            }
+            return xmlDrives;
+        }
+
+
+        /// <summary>Generates list of currently mapped drives
+        /// </summary>
+        /// <remarks>This is used to simplify the main program and to handle exceptions thrown</remarks>
+        /// <returns>List of NetworkConnections with all currently mapped drives.</NetworkConnection></returns>
+        private static List<NetworkConnection> getMappedDrives()
+        {
+            List<NetworkConnection> mappedDrives;
+
+            try
+            {
+                mappedDrives = NetworkConnection.ListCurrentlyMappedDrives();
+            }
+            catch (Exception e)
+            {
+                output(e.ToString());
+                mappedDrives = new List<NetworkConnection>();
+            }
+
+            return mappedDrives;
         }
 
         /// <summary>Standard program output method, determines where to direct output
@@ -104,5 +158,7 @@ namespace network_drive_utility
                 Console.WriteLine(message);
             }
         }
+
+        #endregion
     }
 }

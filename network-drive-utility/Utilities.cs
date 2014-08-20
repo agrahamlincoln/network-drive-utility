@@ -34,7 +34,7 @@ namespace network_drive_utility
         /// <param name="message"></param>
         public static void writeLog(string message)
         {
-            string logLocation = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\" + System.Diagnostics.Process.GetCurrentProcess().ProcessName;
+            string logLocation = appDataPath() + "log.txt";
 
             if (!System.IO.File.Exists(logLocation))
             {
@@ -51,6 +51,16 @@ namespace network_drive_utility
                 sWriter.Close();
             }
         }
+
+        /// <summary>Gets the file path in the current user's AppData/Roaming folder. The filename will be the current process name by default.
+        /// </summary>
+        /// <returns>string file path in user's AppData/Roaming folder</returns>
+        public static string appDataPath()
+        {
+            string path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\" + System.Diagnostics.Process.GetCurrentProcess().ProcessName;
+            return path;
+        }
+
         #endregion
 
         #region .NET Checking
