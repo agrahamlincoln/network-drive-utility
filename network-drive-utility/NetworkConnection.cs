@@ -47,8 +47,8 @@ namespace network_drive_utility
         public string LocalName { get; set; }
         [XmlElement("RemoteName")]
         public string RemoteName { get; set; }
-        [XmlElement("UserName")]
-        public string UserName { get; set; }
+        [XmlElement("Domain")]
+        public string Domain { get; set; }
         [XmlElement("Persistent")]
         public Boolean Persistent { get; set; }
 
@@ -59,7 +59,7 @@ namespace network_drive_utility
         {
             this.LocalName = "";
             this.RemoteName = "";
-            this.UserName = "";
+            this.Domain = "";
             this.Persistent = false;
         }
 
@@ -71,7 +71,7 @@ namespace network_drive_utility
         {
             this.LocalName = LocalName;
             this.RemoteName = RemoteName;
-            this.UserName = "";
+            this.Domain = "";
             this.Persistent = false;
         }
 
@@ -85,7 +85,7 @@ namespace network_drive_utility
         {
             this.LocalName = LocalName;
             this.RemoteName = RemoteName;
-            this.UserName = UserName;
+            this.Domain = UserName;
             this.Persistent = Persistent;
         }
         #endregion
@@ -105,7 +105,7 @@ namespace network_drive_utility
 
                 string LocalName;
                 string RemoteName;
-                string UserName;
+                string[] Domain;
                 bool Persistent;
 
                 //Enumerate all network drives and store in ArrayList object.
@@ -115,9 +115,9 @@ namespace network_drive_utility
                     LocalName = String.Format("{0}", queryObj["LocalName"]);
                     Persistent =  Boolean.Parse(String.Format("{0}", queryObj["Persistent"]));
                     RemoteName =  String.Format("{0}", queryObj["RemoteName"]);
-                    UserName =  String.Format("{0}", queryObj["UserName"]);
+                    Domain =  String.Format("{0}", queryObj["UserName"]).Split('\\');
 
-                    drivesFromWMI.Add(new NetworkConnection(LocalName, RemoteName, UserName, Persistent));
+                    drivesFromWMI.Add(new NetworkConnection(LocalName, RemoteName, Domain[0], Persistent));
                 }
             }
             catch (ManagementException e)
@@ -134,7 +134,7 @@ namespace network_drive_utility
         public string toString()
         {
             string str;
-            str = "=====\n" + LocalName + " " + RemoteName + "\nUser: " + UserName + " Persistent: " + (Persistent ? "Yes" : "No");
+            str = "=====\n" + LocalName + " " + RemoteName + "\nUser: " + Domain + " Persistent: " + (Persistent ? "Yes" : "No");
             return str;
         }
     }
@@ -145,13 +145,13 @@ namespace network_drive_utility
     {
         /// <summary>Class used to compare two Network Connection Objects
         /// </summary>
-        /// <remarks>Verifies the RemoteName is match, does not care about UserName, Persistent, or LocalName</remarks>
+        /// <remarks>Verifies the RemoteName and Domain is match, does not care about Persistent or LocalName</remarks>
         /// <param name="drive1">NetworkConnection object to Compare</param>
         /// <param name="drive2">NetworkConnection object to Compare</param>
         /// <returns>Boolean value of whether the objects are equal or not.</returns>
         public bool Equals(NetworkConnection drive1, NetworkConnection drive2)
         {
-            return (drive1.RemoteName == drive2.RemoteName);
+            return (drive1.RemoteName == drive2.RemoteName && drive1.Domain == drive2.Domain);
         }
 
         public int GetHashCode(NetworkConnection drive)
