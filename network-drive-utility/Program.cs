@@ -38,24 +38,34 @@ namespace network_drive_utility
                 output("\n1: Get list of currently mapped drives from WMI");
                 List<NetworkConnection> mapDrives = getMappedDrives();
 
-                output("\n2: Get Fileshares from XML");
+                output("\n2: Remove blacklisted Fileshares");
+                string blacklistXml_FilePath = Utilities.readAppConfigKey("blacklistXMLPath");
+                List<NetworkConnection> blacklistShares = getXMLDrives(blacklistXml_FilePath);
+
+                //find all mapped drives that are currently blacklisted and remove them
+                List<NetworkConnection> toUnmapDrives = mapDrives.Intersect(blacklistShares, new WildcardNetworkConnectionComparer()).ToList();
+                output("\n2.1: Deleting Blacklisted Fileshares");
+                foreach (NetworkConnection netCon in toUnmapDrives)
+                {
+                    try
+                    {
+                        netCon.unmap();
+                    }
+                    catch (Exception e)
+                    {
+                        output("Error unmapping Drive " + netCon.LocalName + " " + netCon.RemoteName);
+                        output(e.ToString());
+                    }
+                }
+
+                output("\n3: Get Fileshares from XML");
                 //get filepath from app.config file
-                AppSettingsReader appConfig = new AppSettingsReader();
-                string XML_FilePath;
-                try
-                {
-                    XML_FilePath = appConfig.GetValue("userXMLPath", typeof(string)).ToString();
-                }
-                catch
-                {
-                    output("App.Config is missing... Defaulting to User's AppData folder");
-                    XML_FilePath = Utilities.appDataPath() + ".xml";
-                }
+                string globalXML_FilePath = Utilities.readAppConfigKey("userXMLPath");
 
                 //get the list of XML drives from the file path
-                List<NetworkConnection> xmlDrives = getXMLDrives(XML_FilePath);
+                List<NetworkConnection> xmlDrives = getXMLDrives(globalXML_FilePath);
 
-                output("\n3: Generate list of all known Network Drives");
+                output("\n4: Generate list of all known Network Drives");
                 if (xmlDrives.Count > 0)
                 {
                     //Combine the mapped drives and the xml drives
@@ -67,7 +77,7 @@ namespace network_drive_utility
                     allDrives = mapDrives;
                 }
 
-                output("\n4: Writing the list to file");
+                output("\n5: Writing the list to file");
                 if (allDrives.Count > 0)
                 {
                     foreach (NetworkConnection drive in allDrives)
@@ -77,10 +87,10 @@ namespace network_drive_utility
 
                     NetworkConnectionList listobj_allUserDrives = new NetworkConnectionList(allDrives);
 
-                    output("\n4: Serialize the list & Write to XML file");
+                    output("\n5.1: Serialize the list & Write to XML file");
                     try
                     {
-                        Utilities.SerializeToFile<NetworkConnectionList>(listobj_allUserDrives, XML_FilePath);
+                        Utilities.SerializeToFile<NetworkConnectionList>(listobj_allUserDrives, globalXML_FilePath);
                     }
                     catch
                     {

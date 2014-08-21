@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -34,7 +35,7 @@ namespace network_drive_utility
         /// <param name="message"></param>
         public static void writeLog(string message)
         {
-            string logLocation = appDataPath() + "log.txt";
+            string logLocation = appDataPath() + "_log.txt";
 
             if (!System.IO.File.Exists(logLocation))
             {
@@ -221,6 +222,34 @@ namespace network_drive_utility
                 str = file.ReadToEnd();
             }
             return str;
+        }
+
+        /// <summary>Gets a custom key from the App.Config file.
+        /// </summary>
+        /// <param name="keyName">name of the XML key</param>
+        /// <returns>Value of the XML key</returns>
+        public static string readAppConfigKey(string keyName)
+        {
+            AppSettingsReader appConfig = new AppSettingsReader();
+            string value;
+
+            try
+            {
+                value = appConfig.GetValue(keyName, typeof(string)).ToString();
+            }
+            catch
+            {
+                writeLog("App.Config is missing... Defaulting to User's AppData folder");
+                value = appDataPath() + ".xml";
+            }
+
+            //This occurs when the appdata is found but the key is invalid
+            if (value == null)
+            {
+                value = "";
+            }
+
+            return value;
         }
 
         #endregion
