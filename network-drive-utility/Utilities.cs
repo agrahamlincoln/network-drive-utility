@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
@@ -17,7 +18,7 @@ namespace network_drive_utility
     class Utilities
     {
         #region Log writing
-        const string TIMESTAMP_FORMAT = "MM/dd HH:mm:ss ffff";
+        const string TIMESTAMP_FORMAT = "MM/dd HH:mm:ss";
 
         /// <summary>Returns a timestamp in string format.
         /// </summary>
@@ -47,7 +48,7 @@ namespace network_drive_utility
             else
             {
                 StreamWriter sWriter = new StreamWriter(logLocation, true);
-                sWriter.WriteLine(getTimestamp(DateTime.Now) + " " + message);
+                sWriter.WriteLine(getTimestamp(DateTime.Now) + "\t" + message);
 
                 sWriter.Close();
             }
@@ -60,6 +61,14 @@ namespace network_drive_utility
         {
             string path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\" + System.Diagnostics.Process.GetCurrentProcess().ProcessName;
             return path;
+        }
+
+        /// <summary>Returns the currently runnning program's version number.
+        /// </summary>
+        /// <returns>String version number of currently running program.</returns>
+        public static string getVersion()
+        {
+            return typeof(Utilities).Assembly.GetName().Version.ToString();
         }
 
         #endregion
