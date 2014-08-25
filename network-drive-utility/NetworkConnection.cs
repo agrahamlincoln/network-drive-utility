@@ -4,6 +4,7 @@ using System.Linq;
 using System.Management;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml.Serialization;
 
 namespace network_drive_utility
@@ -117,6 +118,8 @@ namespace network_drive_utility
         {
             List<NetworkConnection> drivesFromWMI = new List<NetworkConnection>();
 
+            Regex driveLetter = new Regex("^[A-z]:");
+
             try
             {
                 ManagementObjectSearcher searcher =
@@ -137,7 +140,10 @@ namespace network_drive_utility
                     RemoteName =  String.Format("{0}", queryObj["RemoteName"]);
                     Domain =  String.Format("{0}", queryObj["UserName"]).Split('\\');
 
-                    drivesFromWMI.Add(new NetworkConnection(LocalName, RemoteName, Domain[0], Persistent));
+                    if (driveLetter.IsMatch(LocalName))
+                    {
+                        drivesFromWMI.Add(new NetworkConnection(LocalName, RemoteName, Domain[0], Persistent));
+                    }
                 }
             }
             catch (ManagementException e)

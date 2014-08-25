@@ -13,7 +13,7 @@ namespace network_drive_utility
     /// </summary>
     class Program
     {
-        private static bool isSilent;
+        private static bool isSilent = true;
 
         /// <summary>Main Entrypoint for the Program
         /// </summary>
@@ -44,11 +44,14 @@ namespace network_drive_utility
 
                 //find all mapped drives that are currently blacklisted and remove them
                 List<NetworkConnection> toUnmapDrives = mapDrives.Intersect(blacklistShares, new WildcardNetworkConnectionComparer()).ToList();
+                //Remove unmapped drives from list
+                List<NetworkConnection> clean_mapDrives = mapDrives.Except(toUnmapDrives, new NetworkConnectionComparer()).ToList();
                 output("\n2.1: Deleting Blacklisted Fileshares");
                 foreach (NetworkConnection netCon in toUnmapDrives)
                 {
                     try
                     {
+                        output("Unmapping Drive: " + netCon.LocalName);
                         netCon.unmap();
                     }
                     catch (Exception e)
@@ -69,7 +72,7 @@ namespace network_drive_utility
                 if (xmlDrives.Count > 0)
                 {
                     //Combine the mapped drives and the xml drives
-                    allDrives = xmlDrives.Union(mapDrives, new NetworkConnectionComparer()).ToList();
+                    allDrives = xmlDrives.Union(clean_mapDrives, new NetworkConnectionComparer()).ToList();
                 }
                 else
                 {
