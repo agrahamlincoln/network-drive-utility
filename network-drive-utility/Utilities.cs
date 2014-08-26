@@ -261,6 +261,27 @@ namespace network_drive_utility
             return value;
         }
 
+        /// <summary>Regex Builder
+        /// </summary>
+        /// <param name="pattern">String Pattern with wildcards</param>
+        /// <returns name="regex_pattern">Regular Expression Formatted Pattern</returns>
+        public static string RegexBuild(string pattern)
+        {
+            string regex_pattern;
+            if (pattern == "" || pattern == null)
+            {
+                regex_pattern = "^.*$";
+            }
+            else
+            {
+                regex_pattern =  "^" + Regex.Escape(pattern)
+                    .Replace(@"\*", ".*")
+                    .Replace(@"\?", ".")
+                    + "$";
+            }
+            return regex_pattern;
+        }
+
         #endregion
     }
 }

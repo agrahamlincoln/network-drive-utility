@@ -201,7 +201,7 @@ namespace network_drive_utility
 
     /// <summary>Class used to compare two Network Connection objects
     /// </summary>
-    /// <remarks>This Comparer will implement RemoteName wildcards to cover all specific shares on a server.</remarks>
+    /// <remarks>This Comparer will implement RemoteName and Domain wildcards to cover all specific shares on a server.</remarks>
     class WildcardNetworkConnectionComparer : IEqualityComparer<NetworkConnection>
     {
         /// <summary>Class used to compare two Network Connection Objects
@@ -213,6 +213,10 @@ namespace network_drive_utility
         public bool Equals(NetworkConnection drive1, NetworkConnection drive2)
         {
             bool isEqual;
+
+            string regex_pattern = "*";
+            Regex all = new Regex(regex_pattern, RegexOptions.IgnoreCase);
+
             //parse the remote name to get the server and the share name
             string[] drive1_array = drive1.RemoteName.Split('\\');
             string drive1_server = drive1_array[2];
@@ -222,16 +226,31 @@ namespace network_drive_utility
             string drive2_server = drive2_array[2];
             string drive2_share = drive2_array[3];
 
-            if (drive1.RemoteName == "*" || drive2.RemoteName == "*")
+            string server_Pattern = Utilities.RegexBuild(drive1_server);
+            Regex serverMatch = new Regex(server_Pattern, RegexOptions.IgnoreCase);
+
+            string domain_Pattern = Utilities.RegexBuild(drive1.Domain);
+            Regex domainMatch = new Regex(domain_Pattern, RegexOptions.IgnoreCase);
+
+            //Match domain FIRST (Will be true if domain is null or "")
+            if (domainMatch.IsMatch(drive2.Domain))
             {
-                //wildcard used, match all fileshares for this server
-                isEqual = (drive1_server == drive2_server && drive1.Domain == drive2.Domain);
+                //Wildcard shares
+                if (drive1_share == "*" || drive2_share == "*")
+                {
+                    isEqual = (serverMatch.IsMatch(drive2_server));
+                }
+                //Match like normal
+                else
+                {
+                    isEqual = (drive1.RemoteName.Equals(drive2.RemoteName, StringComparison.OrdinalIgnoreCase));
+                }
             }
             else
             {
-                //no wildcards, match like normal
-                isEqual = (drive1.RemoteName == drive2.RemoteName && drive1.Domain == drive2.Domain);
+                isEqual = false;
             }
+
             return isEqual;
         }
 
