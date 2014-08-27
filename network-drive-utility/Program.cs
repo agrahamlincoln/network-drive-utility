@@ -13,8 +13,7 @@ namespace network_drive_utility
     /// </summary>
     class Program
     {
-        private static bool isSilent = true;
-        private static bool isVerbose = true; //Default is false
+        private static bool logsEnabled = true;
 
         /// <summary>Main Entrypoint for the Program
         /// </summary>
@@ -28,8 +27,7 @@ namespace network_drive_utility
                 foreach (string arg in args)
                 {
                     output("Running with arg: " + arg);
-                    isSilent = (arg == "silent" ? true : false);
-                    isVerbose = (arg == "verbose" ? true : false);
+                    logsEnabled = (arg == "logging" ? true : false);
                 }
             }
 
@@ -45,9 +43,19 @@ namespace network_drive_utility
                 output("1:\tGet list of currently mapped drives from WMI");
                 List<NetworkConnection> mapDrives = getMappedDrives();
 
+                foreach (NetworkConnection netCon in mapDrives)
+                {
+                    output("Mapped: " + netCon.toString());
+                }
+
                 output("2:\tRemove blacklisted Fileshares");
                 string blacklistXml_FilePath = Utilities.readAppConfigKey("blacklistXMLPath");
                 List<NetworkConnection> blacklistShares = getXMLDrives(blacklistXml_FilePath);
+
+                foreach (NetworkConnection netCon in blacklistShares)
+                {
+                    output("Blacklisted: " + netCon.toString());
+                }
 
                 //find all mapped drives that are currently blacklisted and remove them
                 List<NetworkConnection> toUnmapDrives = mapDrives.Intersect(blacklistShares, new WildcardNetworkConnectionComparer()).ToList();
@@ -56,6 +64,7 @@ namespace network_drive_utility
                 output("\t2.1:\tDeleting Blacklisted Fileshares");
                 foreach (NetworkConnection netCon in toUnmapDrives)
                 {
+                    output("To Be Unmapped: " + netCon.toString());
                     try
                     {
                         output("\t\tUnmapping Drive: " + netCon.LocalName);
@@ -66,6 +75,11 @@ namespace network_drive_utility
                         output("\t\tError unmapping Drive " + netCon.LocalName + " " + netCon.RemoteName);
                         output(e.ToString());
                     }
+                }
+
+                foreach (NetworkConnection netCon in clean_mapDrives)
+                {
+                    output("Cleaned List: " + netCon.toString());
                 }
 
                 output("3:\tGet Fileshares from XML");
@@ -92,7 +106,7 @@ namespace network_drive_utility
                 {
                     foreach (NetworkConnection drive in allDrives)
                     {
-                        output(drive.toString(), isVerbose);
+                        output(drive.toString());
                     }
 
                     NetworkConnectionList listobj_allUserDrives = new NetworkConnectionList(allDrives);
@@ -171,33 +185,9 @@ namespace network_drive_utility
         /// <param name="message">Output Message</param>
         public static void output(string message)
         {
-            if (isSilent)
+            if (logsEnabled)
             {
                 Utilities.writeLog(message);
-            }
-            else
-            {
-                Console.WriteLine(message);
-            }
-        }
-
-
-        /// <summary>Standard program output method, determines where and what to output
-        /// </summary>
-        /// <param name="message">Output message</param>
-        /// <param name="verbose">If true, will only display in verbose mode.</param>
-        public static void output(string message, bool verbose)
-        {
-            if (verbose)
-            {
-                if (isSilent)
-                {
-                    Utilities.writeLog(message);
-                }
-                else
-                {
-                    Console.WriteLine(message);
-                }
             }
         }
         #endregion

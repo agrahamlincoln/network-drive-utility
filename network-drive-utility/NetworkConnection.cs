@@ -214,7 +214,7 @@ namespace network_drive_utility
         {
             bool isEqual;
 
-            string regex_pattern = "*";
+            string regex_pattern = ".*";
             Regex all = new Regex(regex_pattern, RegexOptions.IgnoreCase);
 
             //parse the remote name to get the server and the share name
