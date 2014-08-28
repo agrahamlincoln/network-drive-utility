@@ -200,17 +200,17 @@ namespace network_drive_utility
             return result;
         }
 
-        /// <summary>Serializes a list of objects and writes the serialized list to a XML file specified
+        /// <summary>Serializes a list of objects and writes the serialized obj to a XML file specified
         /// </summary>
-        /// <typeparam name="T">Any type of serializable object stored in a list</typeparam>
-        /// <param name="objList">List of serializable objects</param>
+        /// <typeparam name="T">Any type of serializable object</typeparam>
+        /// <param name="obj">List of serializable objects</param>
         /// <param name="filePath">Full Path of XML file to write to</param>
-        public static void SerializeToFile<T>(T objList, string filePath)
+        public static void SerializeToFile<T>(T obj, string filePath)
         {
-            XmlSerializer serializer = new XmlSerializer(objList.GetType());
+            XmlSerializer serializer = new XmlSerializer(obj.GetType());
             using (StreamWriter sw = new StreamWriter(filePath))
             {
-                serializer.Serialize(sw, objList);
+                serializer.Serialize(sw, obj);
             }
         }
 
@@ -280,6 +280,21 @@ namespace network_drive_utility
                     + "$";
             }
             return regex_pattern;
+        }
+
+        /// <summary>Matches two strings, ignoring case.
+        /// </summary>
+        /// <param name="str1">String to compare</param>
+        /// <param name="str2">String to compare</param>
+        /// <returns>Boolean value of whether strings match or not.</returns>
+        public static bool matchString_IgnoreCase(string str1, string str2)
+        {
+            bool isMatch = false;
+            if (str1.Equals(str2, StringComparison.OrdinalIgnoreCase))
+            {
+                isMatch = true;
+            }
+            return isMatch;
         }
 
         #endregion

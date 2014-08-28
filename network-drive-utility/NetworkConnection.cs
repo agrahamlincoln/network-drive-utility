@@ -176,6 +176,31 @@ namespace network_drive_utility
             str = LocalName + "\t" + RemoteName + "\tDomain: " + Domain + "\tPersistent: " + (Persistent ? "Yes" : "No");
             return str;
         }
+
+        /// <summary>Overloaded method that Compares two NetworkConnection objects and determines if they are similar.
+        /// </summary>
+        /// <remarks>Will ignore Domain if field is empty, and will ignore drive letter</remarks>
+        /// <param name="drive2">Drive to compare to the calling object.</param>
+        /// <returns>Boolean value of whether the objects are equal or not</returns>
+        public bool Equals(NetworkConnection drive2)
+        {
+            bool isEqual;
+            
+            //check if domain is empty
+            if (this.Domain == "" || this.Domain == null || drive2.Domain == "" || drive2.Domain == null)
+            {
+                //ignore domain
+                isEqual = Utilities.matchString_IgnoreCase(this.RemoteName, drive2.RemoteName);
+            }
+            else
+            {
+                //verify domains are equal
+                isEqual = (Utilities.matchString_IgnoreCase(this.RemoteName, drive2.RemoteName)
+                    && Utilities.matchString_IgnoreCase(this.Domain, drive2.Domain));
+            }
+
+            return isEqual;
+        }
     }
 
     /// <summary>Class used to compare two Network Connection objects
@@ -190,7 +215,7 @@ namespace network_drive_utility
         /// <returns>Boolean value of whether the objects are equal or not.</returns>
         public bool Equals(NetworkConnection drive1, NetworkConnection drive2)
         {
-            return (drive1.RemoteName == drive2.RemoteName && drive1.Domain == drive2.Domain);
+            return drive1.Equals(drive2);
         }
 
         public int GetHashCode(NetworkConnection drive)
@@ -213,9 +238,6 @@ namespace network_drive_utility
         public bool Equals(NetworkConnection drive1, NetworkConnection drive2)
         {
             bool isEqual;
-
-            string regex_pattern = ".*";
-            Regex all = new Regex(regex_pattern, RegexOptions.IgnoreCase);
 
             //parse the remote name to get the server and the share name
             string[] drive1_array = drive1.RemoteName.Split('\\');
@@ -243,7 +265,7 @@ namespace network_drive_utility
                 //Match like normal
                 else
                 {
-                    isEqual = (drive1.RemoteName.Equals(drive2.RemoteName, StringComparison.OrdinalIgnoreCase));
+                    isEqual = Utilities.matchString_IgnoreCase(drive1.RemoteName, drive2.RemoteName);
                 }
             }
             else

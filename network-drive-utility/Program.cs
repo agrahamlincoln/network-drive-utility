@@ -38,6 +38,9 @@ namespace network_drive_utility
             }
             else
             {
+                string metaDataXml_FilePath = Utilities.readAppConfigKey("metaDataXMLPath");
+                Statistics stats = readMetaData(metaDataXml_FilePath);
+
                 List<NetworkConnection> allDrives;
 
                 output("1:\tGet list of currently mapped drives from WMI");
@@ -69,6 +72,9 @@ namespace network_drive_utility
                     {
                         output("\t\tUnmapping Drive: " + netCon.LocalName);
                         netCon.unmap();
+
+                        //Increment the metadata
+                        stats.FilesharesUnmapped = stats.FilesharesUnmapped + 1;
                     }
                     catch (Exception e)
                     {
@@ -107,6 +113,9 @@ namespace network_drive_utility
                     foreach (NetworkConnection drive in allDrives)
                     {
                         output(drive.toString());
+
+                        //write the count to metadata
+                        stats.FilesharesFound = stats.FilesharesFound + 1;
                     }
 
                     NetworkConnectionList listobj_allUserDrives = new NetworkConnectionList(allDrives);
@@ -120,6 +129,8 @@ namespace network_drive_utility
                     {
                         output("\t\tError writing to file. The xml file has not been saved.");
                     }
+                    Utilities.SerializeToFile<Statistics>(stats, metaDataXml_FilePath);
+
                 }
                 else
                 {
@@ -152,7 +163,7 @@ namespace network_drive_utility
             }
             catch
             {
-                output("Could not locate/access the XML File in the path: \n" + filePath);
+                output("Error Deserializing the File: \n" + filePath);
             }
             return xmlDrives;
         }
@@ -177,6 +188,31 @@ namespace network_drive_utility
             }
 
             return mappedDrives;
+        }
+
+        private static Statistics readMetaData(string filePath)
+        {
+            Statistics stats = new Statistics();
+
+            try
+            {
+                if (File.Exists(filePath))
+                {
+                    output("XML file Exists");
+                    string xmlFile = Utilities.readFile(filePath);
+                    stats = Utilities.Deserialize<Statistics>(xmlFile);
+                }
+                else
+                {
+                    output("MetaData XML file doesnt exist");
+                }
+            }
+            catch
+            {
+                output("Could not locate/access the XML File in the path:" + Environment.NewLine + filePath);
+            }
+
+            return stats;
         }
 
         #region output methods
