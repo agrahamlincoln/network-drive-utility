@@ -110,6 +110,7 @@ namespace network_drive_utility
                 output("5:\tWriting the list to file");
                 if (allDrives.Count > 0)
                 {
+                    stats.FilesharesFound = 0;
                     foreach (NetworkConnection drive in allDrives)
                     {
                         output(drive.toString());
