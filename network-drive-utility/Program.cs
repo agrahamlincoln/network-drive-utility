@@ -108,6 +108,14 @@ namespace network_drive_utility
                 }
 
                 output("5:\tWriting the list to file");
+
+                /**
+                 * This will clean up duplicate drives.
+                 * Theoretically, this will never need to be run.
+                 * I will add a -cleanup flag to run this method.
+                 * allDrives = removeDuplicates(allDrives);
+                 **/
+
                 if (allDrives.Count > 0)
                 {
                     stats.FilesharesFound = 0;
@@ -191,6 +199,10 @@ namespace network_drive_utility
             return mappedDrives;
         }
 
+        /// <summary>DeSerializes the MetaData XML file
+        /// </summary>
+        /// <param name="filePath">Path of the MetaData XML file</param>
+        /// <returns>Statistics object with information from MetaData XML File</returns>
         private static Statistics readMetaData(string filePath)
         {
             Statistics stats = new Statistics();
@@ -214,6 +226,19 @@ namespace network_drive_utility
             }
 
             return stats;
+        }
+
+        /// <summary>Checks a list with itself and cleans up any duplicate shares
+        /// </summary>
+        /// <param name="dirtyList">List of NetworkConnection objects</param>
+        /// <returns>List of NetworkConnection objects without duplicates</returns>
+        private static List<NetworkConnection> removeDuplicates(List<NetworkConnection> dirtyList)
+        {
+            List<NetworkConnection> cleanedList = new List<NetworkConnection>();
+
+            cleanedList = dirtyList.Distinct(new NetworkConnectionComparer()).ToList();
+
+            return cleanedList;
         }
 
         #region output methods

@@ -177,29 +177,32 @@ namespace network_drive_utility
             return str;
         }
 
-        /// <summary>Overloaded method that Compares two NetworkConnection objects and determines if they are similar.
+        /// <summary>Splits the full share path and returns only the share name
         /// </summary>
-        /// <remarks>Will ignore Domain if field is empty, and will ignore drive letter</remarks>
-        /// <param name="drive2">Drive to compare to the calling object.</param>
-        /// <returns>Boolean value of whether the objects are equal or not</returns>
-        public bool Equals(NetworkConnection drive2)
+        /// <returns>String - share name</returns>
+        public string getShareName()
         {
-            bool isEqual;
-            
-            //check if domain is empty
-            if (this.Domain == "" || this.Domain == null || drive2.Domain == "" || drive2.Domain == null)
-            {
-                //ignore domain
-                isEqual = Utilities.matchString_IgnoreCase(this.RemoteName, drive2.RemoteName);
-            }
-            else
-            {
-                //verify domains are equal
-                isEqual = (Utilities.matchString_IgnoreCase(this.RemoteName, drive2.RemoteName)
-                    && Utilities.matchString_IgnoreCase(this.Domain, drive2.Domain));
-            }
+            string share;
 
-            return isEqual;
+            //parse the remote name to get the server and the share name
+            string[] drive_array = this.RemoteName.Split('\\');
+            share = drive_array[3];
+
+            return share;
+        }
+
+        /// <summary>Splits the full share path and returns only the server name
+        /// </summary>
+        /// <returns>String - server name</returns>
+        public string getServerName()
+        {
+            string server;
+
+            //parse the remote name to get the server and the share name
+            string[] drive_array = this.RemoteName.Split('\\');
+            server = drive_array[2];
+
+            return server;
         }
     }
 
@@ -215,12 +218,31 @@ namespace network_drive_utility
         /// <returns>Boolean value of whether the objects are equal or not.</returns>
         public bool Equals(NetworkConnection drive1, NetworkConnection drive2)
         {
-            return drive1.Equals(drive2);
+            bool isEqual;
+
+            //check if domain is empty
+            if (drive1.Domain == "" || drive1.Domain == null || drive2.Domain == "" || drive2.Domain == null)
+            {
+                //ignore domain
+                isEqual = Utilities.matchString_IgnoreCase(drive1.RemoteName, drive2.RemoteName);
+            }
+            else
+            {
+                //verify domains are equal
+                isEqual = (Utilities.matchString_IgnoreCase(drive1.RemoteName, drive2.RemoteName)
+                    && Utilities.matchString_IgnoreCase(drive1.Domain, drive2.Domain));
+            }
+
+            return isEqual;
         }
 
         public int GetHashCode(NetworkConnection drive)
         {
-            return drive.RemoteName.GetHashCode();
+            string shareName = drive.getShareName();
+
+            //Force Lowercase on RemoteName
+            string ShareName_lower = shareName.ToLower();
+            return ShareName_lower.GetHashCode();
         }
     }
 
@@ -239,14 +261,11 @@ namespace network_drive_utility
         {
             bool isEqual;
 
-            //parse the remote name to get the server and the share name
-            string[] drive1_array = drive1.RemoteName.Split('\\');
-            string drive1_server = drive1_array[2];
-            string drive1_share = drive1_array[3];
+            string drive1_server = drive1.getServerName();
+            string drive1_share = drive1.getShareName();
 
-            string[] drive2_array = drive2.RemoteName.Split('\\');
-            string drive2_server = drive2_array[2];
-            string drive2_share = drive2_array[3];
+            string drive2_server = drive2.getServerName();
+            string drive2_share = drive2.getShareName();
 
             string server_Pattern = Utilities.RegexBuild(drive1_server);
             Regex serverMatch = new Regex(server_Pattern, RegexOptions.IgnoreCase);
@@ -278,7 +297,11 @@ namespace network_drive_utility
 
         public int GetHashCode(NetworkConnection drive)
         {
-            return drive.RemoteName.GetHashCode();
+            string shareName = drive.getShareName();
+
+            //Force Lowercase on RemoteName
+            string ShareName_lower = shareName.ToLower();
+            return ShareName_lower.GetHashCode();
         }
     }
 }
