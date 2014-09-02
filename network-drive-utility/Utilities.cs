@@ -30,11 +30,23 @@ namespace network_drive_utility
             return value.ToString(TIMESTAMP_FORMAT);
         }
 
+        /// <summary>Public method to access the writelog method
+        /// </summary>
+        /// <param name="message">Message to write to log</param>
+        /// <param name="print">Whether to write or not</param>
+        public static void writeLog(string message, bool print)
+        {
+            if (print)
+            {
+                owriteLog(message);
+            }
+        }
+
         /// <summary>Appends a new message to the end of the log file.
         /// </summary>
         /// <remarks>If there is no log file available, this will create one. The log files are stored in the current user's Appdata/Roaming folder.</remarks>
         /// <param name="message"></param>
-        public static void writeLog(string message)
+        private static void owriteLog(string message)
         {
             string logLocation = appDataPath() + "_log.txt";
 
@@ -90,18 +102,18 @@ namespace network_drive_utility
                 {
                     if (netVersion.IsMatch(ver))
                     {
-                        Utilities.writeLog(".NET version " + ver + " is installed.");
+                        Utilities.owriteLog(".NET version " + ver + " is installed.");
                         returnValue = true;
                         break;
                     }
                 }
                 if (returnValue == false)
-                    Utilities.writeLog(".NET 3.5 must be installed to run this.");
+                    Utilities.owriteLog(".NET 3.5 must be installed to run this.");
                 return returnValue;
             }
             catch (Exception e)
             {
-                Utilities.writeLog("Could not query registry for .NET Versions" + e.ToString());
+                Utilities.owriteLog("Could not query registry for .NET Versions" + e.ToString());
                 return false;
             }
 
@@ -248,7 +260,7 @@ namespace network_drive_utility
             }
             catch
             {
-                writeLog("App.Config is missing... Defaulting to User's AppData folder");
+                owriteLog("App.Config is missing... Defaulting to User's AppData folder");
                 value = appDataPath() + ".xml";
             }
 

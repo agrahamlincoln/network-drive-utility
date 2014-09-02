@@ -13,14 +13,15 @@ namespace network_drive_utility
     /// </summary>
     class Program
     {
-        private static bool logsEnabled = true;
+        private static bool logsEnabled = false;
+        private static bool deduplicate = false;
 
         /// <summary>Main Entrypoint for the Program
         /// </summary>
         /// <param name="args">Program arguments</param>
         public static void Main(string[] args)
         {
-            output("Now Running: " + System.Diagnostics.Process.GetCurrentProcess().ProcessName + " v" + Utilities.getVersion());
+            output("Now Running: " + System.Diagnostics.Process.GetCurrentProcess().ProcessName + " v" + Utilities.getVersion(), true);
             //Determine whether program is running silently or not.
             if (args.Length != 0)
             {
@@ -28,13 +29,14 @@ namespace network_drive_utility
                 {
                     output("Running with arg: " + arg);
                     logsEnabled = (arg == "logging" ? true : false);
+                    deduplicate = (arg == "dedupe" ? true : false);
                 }
             }
 
             //Determine if the program will run properly or not.
             if (!Utilities.HasNet35())
             {
-                output("Error: .NET 3.5 or greater is not installed");
+                output("Error: .NET 3.5 or greater is not installed", true);
             }
             else
             {
@@ -70,7 +72,7 @@ namespace network_drive_utility
                     output("To Be Unmapped: " + netCon.toString());
                     try
                     {
-                        output("\t\tUnmapping Drive: " + netCon.LocalName);
+                        output("\t\tUnmapping Drive: " + netCon.LocalName, true);
                         netCon.unmap();
 
                         //Increment the metadata
@@ -78,7 +80,7 @@ namespace network_drive_utility
                     }
                     catch (Exception e)
                     {
-                        output("\t\tError unmapping Drive " + netCon.LocalName + " " + netCon.RemoteName);
+                        output("\t\tError unmapping Drive " + netCon.LocalName + " " + netCon.RemoteName, true);
                         output(e.ToString());
                     }
                 }
@@ -109,12 +111,11 @@ namespace network_drive_utility
 
                 output("5:\tWriting the list to file");
 
-                /**
-                 * This will clean up duplicate drives.
-                 * Theoretically, this will never need to be run.
-                 * I will add a -cleanup flag to run this method.
-                 * allDrives = removeDuplicates(allDrives);
-                 **/
+                //Deduplicate the drive list, only if specified in program arguments.
+                if (deduplicate)
+                {
+                    allDrives = removeDuplicates(allDrives);
+                }
 
                 if (allDrives.Count > 0)
                 {
@@ -241,18 +242,30 @@ namespace network_drive_utility
             return cleanedList;
         }
 
-        #region output methods
         /// <summary>Standard program output method, determines where to direct output
         /// </summary>
         /// <param name="message">Output Message</param>
         public static void output(string message)
         {
+            Utilities.writeLog(message, logsEnabled);
+        }
+
+        /// <summary>Standard program output method, Takes boolean value to override the logging setting
+        /// </summary>
+        /// <remarks>Note: If the program is run with the "logging" argument, it will override this.</remarks>
+        /// <param name="message">Output Message</param>
+        /// <param name="print">Boolean value that overrides the default setting.</param>
+        public static void output(string message, bool print)
+        {
             if (logsEnabled)
             {
-                Utilities.writeLog(message);
+                Utilities.writeLog(message, true);
+            }
+            else
+            {
+                Utilities.writeLog(message, print);
             }
         }
-        #endregion
 
         #endregion
     }
