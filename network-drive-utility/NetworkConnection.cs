@@ -184,9 +184,7 @@ namespace network_drive_utility
         {
             string share;
 
-            //parse the remote name to get the server and the share name
-            string[] drive_array = this.RemoteName.Split('\\');
-            share = drive_array[3];
+            share = Utilities.getToken(this.RemoteName, 3, '\\');
 
             return share;
         }
@@ -198,9 +196,7 @@ namespace network_drive_utility
         {
             string server;
 
-            //parse the remote name to get the server and the share name
-            string[] drive_array = this.RemoteName.Split('\\');
-            server = drive_array[2];
+            server = Utilities.getToken(this.RemoteName, 2, '\\');
 
             return server;
         }
@@ -295,13 +291,18 @@ namespace network_drive_utility
             return isEqual;
         }
 
-        public int GetHashCode(NetworkConnection drive)
+        /// <summary>Override the GetHashCode Method. This way the hashcodes will ALWAYS equate
+        /// </summary>
+        /// <remarks>Hashcodes must be equivalent AS WELL AS the .equals method</remarks>
+        /// <returns>0, Everytime.</returns>
+        public int GetHashCode(NetworkConnection drive) { return 0; }
+        /*public int GetHashCode(NetworkConnection drive)
         {
             string shareName = drive.getShareName();
 
             //Force Lowercase on RemoteName
             string ShareName_lower = shareName.ToLower();
             return ShareName_lower.GetHashCode();
-        }
+        }*/
     }
 }

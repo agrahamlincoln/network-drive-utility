@@ -5,6 +5,10 @@ using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security;
+using System.Security.AccessControl;
+using System.Security.Permissions;
+using System.Security.Principal;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
@@ -245,6 +249,55 @@ namespace network_drive_utility
             return str;
         }
 
+        /// <summary>Verifies if the current user has write permissions to a folder.
+        /// </summary>
+        /// <remarks>This code was found on stackoverflow.com http://stackoverflow.com/questions/1410127/c-sharp-test-if-user-has-write-access-to-a-folder </remarks>
+        /// <param name="fullPath">Path of folder to check</param>
+        /// <returns>Whether the user can write to the path or not</returns>
+        public static bool canIWrite(string fullPath)
+        {
+            bool writable = false;
+            try
+            {
+                DirectoryInfo di = new DirectoryInfo(fullPath);
+                DirectorySecurity acl = di.GetAccessControl();
+                AuthorizationRuleCollection rules = acl.GetAccessRules(true, true, typeof(NTAccount));
+
+                WindowsIdentity currentUser = WindowsIdentity.GetCurrent();
+                WindowsPrincipal principal = new WindowsPrincipal(currentUser);
+                foreach (AuthorizationRule rule in rules)
+                {
+                    FileSystemAccessRule fsAccessRule = rule as FileSystemAccessRule;
+                    if (fsAccessRule == null)
+                        continue;
+
+                    if ((fsAccessRule.FileSystemRights & FileSystemRights.WriteData) > 0)
+                    {
+                        NTAccount ntAccount = rule.IdentityReference as NTAccount;
+                        if (ntAccount == null)
+                        {
+                            continue;
+                        }
+
+                        if (principal.IsInRole(ntAccount.Value))
+                        {
+                            owriteLog(string.Format("Current user is in role of {0}, has write access", ntAccount.Value));
+                            writable = true;
+                            continue;
+                        }
+                        owriteLog(string.Format("Current user is not in role of {0}, does not have write access", ntAccount.Value));
+                    }
+                }
+            }
+            catch (UnauthorizedAccessException)
+            {
+                owriteLog("does not have write access");
+                writable = false;
+            }
+
+            return writable;
+        }
+
         /// <summary>Gets a custom key from the App.Config file.
         /// </summary>
         /// <param name="keyName">name of the XML key</param>
@@ -307,6 +360,46 @@ namespace network_drive_utility
                 isMatch = true;
             }
             return isMatch;
+        }
+
+        /// <summary>Splits a string with the passed delimeter and returns the token specified
+        /// </summary>
+        /// <param name="str">string to split</param>
+        /// <param name="token">index of token to return</param>
+        /// <param name="delim">delimeter to split string with</param>
+        /// <returns>the resulting token from the string</returns>
+        public static string getToken(string str, int token, char delim)
+        {
+            string parsed;
+            string[] strArray = str.Split(delim);
+            if (token > strArray.Length || token < 0)
+            {
+                //return the last token in the string
+                parsed = strArray.Last();
+            }
+            else
+            {
+                parsed = strArray[token];
+            }
+            return parsed;
+        }
+
+        /// <summary>Takes a file path and cleans it up so it does not include any filenames and is only the filepath
+        /// </summary>
+        /// <param name="fullPath">full file/directory path</param>
+        /// <returns>Path of the directory and not any files.</returns>
+        public static string trimPath(string fullPath)
+        {
+            string trimmed;
+
+            //split the string
+            List<string> strArray = fullPath.Split('\\').ToList();
+            //remove the last item
+            strArray.RemoveAt(strArray.Count - 1);
+            //re-join the string
+            trimmed = string.Join("\\", strArray.ToArray());
+
+            return trimmed;
         }
 
         #endregion
