@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Security;
 using System.Security.AccessControl;
@@ -400,6 +401,37 @@ namespace network_drive_utility
             trimmed = string.Join("\\", strArray.ToArray());
 
             return trimmed;
+        }
+
+        /// <summary>Parses the Domain from a Fully Qualified Domain Name
+        /// </summary>
+        /// <param name="fqdn">Fully qualified domain name of a host</param>
+        /// <returns>Only the domain name of the passed FQDN</returns>
+        public static string GetDomainName(string fqdn)
+        {
+            List<string> fqdnList = fqdn.Split('.').ToList();
+            fqdnList.RemoveAt(0);
+            return String.Join(".", fqdnList.ToArray());
+        }
+
+        /// <summary>Parses the Hostname from a Fully Qualified Domain Name
+        /// </summary>
+        /// <param name="fqdn">Fully qualified domain name of a host</param>
+        /// <returns>Only the hostname of the passed FQDN</returns>
+        public static string GetHostName(string fqdn)
+        {
+            return getToken(fqdn, 0, '.');
+        }
+
+        /// <summary>Performs a DNS lookup and returns the fully qualified domain name.
+        /// </summary>
+        /// <param name="hostname">Hostname or IP Address to look up</param>
+        /// <returns>Fully Qualified Domain Name of the host</returns>
+        public static string GetFQDN(string hostname)
+        {
+            IPHostEntry host;
+            host = Dns.GetHostEntry(hostname);
+            return host.HostName;
         }
 
         #endregion

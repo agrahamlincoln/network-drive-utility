@@ -200,6 +200,36 @@ namespace network_drive_utility
 
             return server;
         }
+
+        /// <summary>Attempts a DNS lookup on the host and puts the server's domain name in the field.
+        /// </summary>
+        public void DNSVerify()
+        {
+            try
+            {
+                this.Domain = Utilities.GetDomainName(Utilities.GetFQDN(this.getServerName()));
+            }
+            catch (Exception e)
+            {
+                throw new Exception("Failed to look up the host through dns. Full Details:" + Environment.NewLine + e.ToString());
+            }
+        }
+
+        /// <summary>Runs the DNSVerify method and returns a boolean value of whether the host was found or not.
+        /// </summary>
+        /// <returns>Whether the host is found or not</returns>
+        public bool RDNSVerify()
+        {
+            try
+            {
+                DNSVerify();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 
     /// <summary>Class used to compare two Network Connection objects

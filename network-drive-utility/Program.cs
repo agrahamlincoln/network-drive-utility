@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml.Serialization;
+using System.Threading;
 
 namespace network_drive_utility
 {
@@ -52,6 +53,14 @@ namespace network_drive_utility
 
                     foreach (NetworkConnection netCon in mapDrives)
                     {
+                        try
+                        {
+                            netCon.DNSVerify();
+                        }
+                        catch (Exception e)
+                        {
+                            output(e.ToString());
+                        }
                         output("Mapped: " + netCon.toString());
                     }
 
@@ -87,8 +96,19 @@ namespace network_drive_utility
                         }
                     }
 
+                    //DNS Pruning, ONLY add new shares that are DNS-able
                     foreach (NetworkConnection netCon in clean_mapDrives)
                     {
+                        if (!netCon.RDNSVerify())
+                        {
+                            //the host is not dns-able; do not add it to the list
+                            clean_mapDrives.Remove(netCon);
+                            continue;
+                        }
+                        else
+                        {
+                            netCon.DNSVerify();
+                        }
                         output("Cleaned List: " + netCon.toString());
                     }
 
@@ -121,6 +141,7 @@ namespace network_drive_utility
 
                     if (allDrives.Count > 0)
                     {
+
                         output("\t5.1:\tWrite to Log and record Statistics");
                         //Write to Log and record statistics
                         stats.FilesharesFound = 0;
