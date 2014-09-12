@@ -24,6 +24,8 @@ This program was created with the intention of auditing our network's fileshares
 
 I attempted to make this program fairly modular and scalable. There is fairly advanced logging built in, and the app.config file can be modified to suit any network's storage locations.
 
+Credits to any code I've found/used/modified are found in the comments.
+
 Deployment
 
 I recommend you deploy this application using scheduled tasks upon login. If you set this up via group policy, you may easily set arguments and when to run the application (I recommend 30seconds after log in of any user), and can easily remove it by changing the group policy object to remove the scheduled task. This also has built in handling if the executible is missing, the scheduled task will fail and the user will not notice anything.
