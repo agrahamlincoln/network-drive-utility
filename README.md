@@ -14,6 +14,9 @@ Flags (Run these arguments when executing the program)
 
 Upcoming/Planned features
 
+- Full Program log
+  - Fileshare Unmaps
+  - Fileshare Additions
 - Fileshare Mapping
 - Statistics: count of each fileshare's occurrence
 - Individual user XML files
