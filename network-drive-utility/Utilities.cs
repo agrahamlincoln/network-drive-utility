@@ -22,7 +22,10 @@ namespace network_drive_utility
     /// <remarks>Excludes: Anything that could not be dropped into another application without modification</remarks>
     class Utilities
     {
+        static LogWriter logger = new LogWriter();
+        /*
         #region Log writing
+        
         const string TIMESTAMP_FORMAT = "MM/dd HH:mm:ss";
 
         /// <summary>Returns a timestamp in string format.
@@ -89,6 +92,7 @@ namespace network_drive_utility
         }
 
         #endregion
+         */
 
         #region .NET Checking
 
@@ -107,18 +111,18 @@ namespace network_drive_utility
                 {
                     if (netVersion.IsMatch(ver))
                     {
-                        Utilities.owriteLog(".NET version " + ver + " is installed.");
+                        logger.Write(".NET version " + ver + " is installed.", true);
                         returnValue = true;
                         break;
                     }
                 }
                 if (returnValue == false)
-                    Utilities.owriteLog(".NET 3.5 must be installed to run this.");
+                    logger.Write(".NET 3.5 must be installed to run this.");
                 return returnValue;
             }
             catch (Exception e)
             {
-                Utilities.owriteLog("Could not query registry for .NET Versions" + e.ToString());
+                logger.Write("Could not query registry for .NET Versions" + e.ToString());
                 return false;
             }
 
@@ -282,17 +286,17 @@ namespace network_drive_utility
 
                         if (principal.IsInRole(ntAccount.Value))
                         {
-                            owriteLog(string.Format("Current user is in role of {0}, has write access", ntAccount.Value));
+                            logger.Write(string.Format("Current user is in role of {0}, has write access", ntAccount.Value));
                             writable = true;
                             continue;
                         }
-                        owriteLog(string.Format("Current user is not in role of {0}, does not have write access", ntAccount.Value));
+                        logger.Write(string.Format("Current user is not in role of {0}, does not have write access", ntAccount.Value));
                     }
                 }
             }
             catch (UnauthorizedAccessException)
             {
-                owriteLog("does not have write access");
+                logger.Write("does not have write access");
                 writable = false;
             }
 
@@ -314,8 +318,8 @@ namespace network_drive_utility
             }
             catch
             {
-                owriteLog("App.Config is missing... Defaulting to User's AppData folder");
-                value = appDataPath() + ".xml";
+                logger.Write("App.Config is missing... Defaulting to XML file in User's AppData folder");
+                value = logger.appDataPath + ".xml";
             }
 
             //This occurs when the appdata is found but the key is invalid

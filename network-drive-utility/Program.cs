@@ -15,16 +15,21 @@ namespace network_drive_utility
     {
         private static bool logsEnabled = false;
         private static bool deduplicate = false;
+        private static LogWriter logger = new LogWriter();
 
         /// <summary>Main Entrypoint for the Program
         /// </summary>
         /// <param name="args">Program arguments</param>
         public static void Main(string[] args)
         {
+
             try
             {
-                output("Now Running: " + System.Diagnostics.Process.GetCurrentProcess().ProcessName + " v" + Utilities.getVersion(), true);
-                //Determine whether program is running silently or not.
+                #region** 1 Initialize Program
+                //** 1.1 Write Log Header
+                output(logger.header(), true);
+
+                //** 1.2 Parse Program Parameters
                 if (args.Length != 0)
                 {
                     foreach (string arg in args)
@@ -35,23 +40,53 @@ namespace network_drive_utility
                     }
                 }
 
-                //Determine if the program will run properly or not.
+                //** 1.3 Verify Program Compatability
                 if (!Utilities.HasNet35())
                 {
                     output("Error: .NET 3.5 or greater is not installed", true);
                 }
                 else
                 {
+                    #region program init
+                    //Initialize Program Variables
+
+                    //File Locations
                     string metaDataXml_FilePath = Utilities.readAppConfigKey("metaDataXMLPath");
-                    Statistics stats = readMetaData(metaDataXml_FilePath);
+                    string blacklistXml_FilePath = Utilities.readAppConfigKey("blacklistXMLPath");
+                    string globalXML_FilePath = Utilities.readAppConfigKey("userXMLPath");
 
-                    List<NetworkConnection> allDrives;
+                    //Lists
+                    List<NetworkConnection> mapDrives;          // Currently Mapped Drives
+                    List<NetworkConnection> blacklistShares;    // Blacklisted Fileshares
+                    List<NetworkConnection> xmlDrives;          // Network Drives from XML File
+                    List<NetworkConnection> allDrives;          // All Valid Known Fileshares (Clean + Known)
+                    //Utility Lists
+                    List<NetworkConnection> toUnmapDrives;      // Utility List: Maps to be Unmapped
+                    List<NetworkConnection> clean_mapDrives;    // Utility List: After Unmapping and Verifying servers.
 
+                    Statistics stats;                           // Metadata Object
+                    #endregion
+                #endregion
+
+                    #region ** 2 Gather Information
+                    //** 2.1 Read Metadata XML
+                    stats = readMetaData(metaDataXml_FilePath);
+
+                    //** 2.2 Get Currently Mapped Drives
                     output("1:\tGet list of currently mapped drives from WMI");
-                    List<NetworkConnection> mapDrives = getMappedDrives();
+                    mapDrives = getMappedDrives();
 
+                    //** 2.3 Get Blacklisted Drives
+                    blacklistShares = getXMLDrives(blacklistXml_FilePath);
+
+                    //** 2.4 Read Current Library of Drives
+                    xmlDrives = getXMLDrives(globalXML_FilePath);
+
+                    //** 2.5 Write Lists to Logs
+                    #region** ** 2.5.1 Write Mapped Drives to Logs
                     foreach (NetworkConnection netCon in mapDrives)
                     {
+                        //run DNS Verify for logging purposes
                         try
                         {
                             netCon.DNSVerify();
@@ -62,25 +97,36 @@ namespace network_drive_utility
                         }
                         output("Mapped: " + netCon.toString());
                     }
-
-                    output("2:\tRemove blacklisted Fileshares");
-                    string blacklistXml_FilePath = Utilities.readAppConfigKey("blacklistXMLPath");
-                    List<NetworkConnection> blacklistShares = getXMLDrives(blacklistXml_FilePath);
-
+                    #endregion
+                    #region** ** 2.5.2 Write Blacklisted Drives to Logs
                     foreach (NetworkConnection netCon in blacklistShares)
                     {
                         output("Blacklisted: " + netCon.toString());
                     }
+                    #endregion
+                    #region** ** 2.5.3 Write Known Drives to Logs
+                    foreach (NetworkConnection netCon in xmlDrives)
+                    {
+                        output("Blacklisted: " + netCon.toString());
+                    }
+                    #endregion
+                    #endregion
 
+                    #region** 3 Process Information
+                    //** 3.1 Compare Current to Blacklist
                     //find all mapped drives that are currently blacklisted and remove them
-                    List<NetworkConnection> toUnmapDrives = mapDrives.Intersect(blacklistShares, new WildcardNetworkConnectionComparer()).ToList();
-                    //Remove unmapped drives from list
-                    List<NetworkConnection> clean_mapDrives = mapDrives.Except(toUnmapDrives, new NetworkConnectionComparer()).ToList();
-                    output("\t2.1:\tDeleting Blacklisted Fileshares");
+                    toUnmapDrives = mapDrives.Intersect(blacklistShares, new WildcardNetworkConnectionComparer()).ToList();
+                    #region** ** 3.1.1 Write To Be Unmapped Drives to Logs & Record Statistics
                     foreach (NetworkConnection netCon in toUnmapDrives)
                     {
                         output("To Be Unmapped: " + netCon.toString());
-                        try
+                    }
+                    #endregion
+
+                    //** 3.2 Remove Blacklisted Fileshares
+                    foreach (NetworkConnection netCon in toUnmapDrives)
+                    {
+                        try // Unmap the fileshare
                         {
                             output("\t\tUnmapping Drive: " + netCon.LocalName, true);
                             netCon.unmap();
@@ -95,6 +141,9 @@ namespace network_drive_utility
                         }
                     }
 
+                    //** 3.4 Remove Shares that are not DNS-able and that were unmapped
+                    //Remove unmapped drives from list
+                    clean_mapDrives = mapDrives.Except(toUnmapDrives, new NetworkConnectionComparer()).ToList();
                     //DNS Pruning, ONLY add new shares that are DNS-able
                     foreach (NetworkConnection netCon in clean_mapDrives)
                     {
@@ -108,17 +157,12 @@ namespace network_drive_utility
                         {
                             netCon.DNSVerify();
                         }
+                        //Write Cleaned List to Logs
                         output("Cleaned List: " + netCon.toString());
                     }
 
-                    output("3:\tGet Fileshares from XML");
-                    //get filepath from app.config file
-                    string globalXML_FilePath = Utilities.readAppConfigKey("userXMLPath");
-
-                    //get the list of XML drives from the file path
-                    List<NetworkConnection> xmlDrives = getXMLDrives(globalXML_FilePath);
-
-                    output("4:\tGenerate list of all known Network Drives");
+                    //** 3.5 Combine Cleaned list and Known List
+                    output("4:\tGenerating list of all known Network Drives");
                     if (xmlDrives.Count > 0)
                     {
                         //Combine the mapped drives and the xml drives
@@ -130,30 +174,30 @@ namespace network_drive_utility
                         allDrives = mapDrives;
                     }
 
-                    output("5:\tWriting the list to file");
-
-                    //Deduplicate the drive list, only if specified in program arguments.
+                    //Deduplicate the drive list; default = false
                     if (deduplicate)
                     {
                         allDrives = removeDuplicates(allDrives);
                     }
 
+                    #region** ** 3.5.1 Write Complete List to Logs & Record Statistics
+                    output("\t5.1:\tWrite to Log and record Statistics");
+                    //Write to Log and record statistics
+                    stats.FilesharesFound = 0;
+                    foreach (NetworkConnection drive in allDrives)
+                    {
+                        output(drive.toString());
+
+                        //write the count to metadata
+                        stats.FilesharesFound = stats.FilesharesFound + 1;
+                    }
+                    #endregion
+                    #endregion
+
+                    #region** 4 Generate and Write Output
+                    //** 4.2 Serialize and Write XML Files
                     if (allDrives.Count > 0)
                     {
-
-                        output("\t5.1:\tWrite to Log and record Statistics");
-                        //Write to Log and record statistics
-                        stats.FilesharesFound = 0;
-                        foreach (NetworkConnection drive in allDrives)
-                        {
-                            output(drive.toString());
-
-                            //write the count to metadata
-                            stats.FilesharesFound = stats.FilesharesFound + 1;
-                        }
-
-                        NetworkConnectionList listobj_allUserDrives = new NetworkConnectionList(allDrives);
-
                         output("\t5.1:\tSerialize the list & Write to XML file");
                         //verify the user has access to write to the XML folder
                         
@@ -165,7 +209,7 @@ namespace network_drive_utility
                         {
                             if (Utilities.canIWrite(globalXML_directoryPath))
                             {
-                                Utilities.SerializeToFile<NetworkConnectionList>(listobj_allUserDrives, globalXML_FilePath);
+                                Utilities.SerializeToFile<NetworkConnectionList>(new NetworkConnectionList(allDrives), globalXML_FilePath);
                             }
                             if (Utilities.canIWrite(metaDataXML_directoryPath))
                             {
@@ -182,6 +226,7 @@ namespace network_drive_utility
                     {
                         output("\tNo Fileshares found.");
                     }
+                    #endregion
                 }
                 output(Environment.NewLine);
             }
@@ -295,7 +340,7 @@ namespace network_drive_utility
         /// <param name="message">Output Message</param>
         private static void output(string message)
         {
-            Utilities.writeLog(message, logsEnabled);
+            logger.Write(message, logsEnabled);
         }
 
         /// <summary>Standard program output method, Takes boolean value to override the logging setting
@@ -307,11 +352,11 @@ namespace network_drive_utility
         {
             if (logsEnabled)
             {
-                Utilities.writeLog(message, true);
+                logger.Write(message, true);
             }
             else
             {
-                Utilities.writeLog(message, print);
+                logger.Write(message, print);
             }
         }
         #endregion
