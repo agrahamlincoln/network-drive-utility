@@ -319,7 +319,7 @@ namespace network_drive_utility
             catch
             {
                 logger.Write("App.Config is missing... Defaulting to XML file in User's AppData folder");
-                value = logger.appDataPath + ".xml";
+                value = logger.logPath + ".xml";
             }
 
             //This occurs when the appdata is found but the key is invalid

@@ -173,7 +173,7 @@ namespace network_drive_utility
         public string toString()
         {
             string str;
-            str = LocalName + "\t" + RemoteName + "\tDomain: " + Domain + "\tPersistent: " + (Persistent ? "Yes" : "No");
+            str = LocalName + "\t" + RemoteName + "\tDomain: " + Domain;
             return str;
         }
 

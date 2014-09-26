@@ -9,15 +9,60 @@ namespace network_drive_utility
     class LogWriter
     {
         // Class Variables
-        public string appDataPath { get; set; }
+        public string logPath { get; set; }
+        public string fileName { get; set; }
         public string assemblyVersion { get; set; }
 
-        // Constructors
+        #region Constructors
         public LogWriter()
         {
-            this.appDataPath = getAppDataPath();
+            this.logPath = getAppDataPath();
+            this.fileName = getProcessName() + "_log.txt";
             this.assemblyVersion = getVersion();
         }
+
+        public LogWriter(string filepath)
+        {
+            this.logPath = filepath;
+            this.fileName = getProcessName() + "_log.txt";
+            this.assemblyVersion = getVersion();
+        }
+
+        public LogWriter(string filepath, string fileName)
+        {
+            this.logPath = filepath;
+            this.fileName = fileName;
+            this.assemblyVersion = getVersion();
+        }
+        #endregion
+        #region Information Gathering
+        /// <summary>Gets the file path in the current user's AppData/Roaming folder. The filename will be the current process name by default.
+        /// </summary>
+        /// <returns>string file path in user's AppData/Roaming folder</returns>
+        public string getAppDataPath()
+        {
+            string path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            return path;
+        }
+
+        /// <summary>Gets the current process name
+        /// </summary>
+        /// <returns>Process Name for this application</returns>
+        public string getProcessName()
+        {
+            string process = System.Diagnostics.Process.GetCurrentProcess().ProcessName;
+            return process;
+        }
+
+        /// <summary>Returns the currently runnning program's version number.
+        /// </summary>
+        /// <returns>String version number of currently running program.</returns>
+        public string getVersion()
+        {
+            return typeof(LogWriter).Assembly.GetName().Version.ToString();
+        }
+
+        #endregion
 
         #region Log writing
         const string TIMESTAMP_FORMAT = "MM/dd HH:mm:ss";
@@ -59,7 +104,7 @@ namespace network_drive_utility
         /// <param name="message"></param>
         private void oWrite(string message)
         {
-            string logLocation = appDataPath + "_log.txt";
+            string logLocation = logPath + "\\" + fileName;
 
             if (!System.IO.File.Exists(logLocation))
             {
@@ -84,24 +129,6 @@ namespace network_drive_utility
         {
             return "Now Running: " + System.Diagnostics.Process.GetCurrentProcess().ProcessName + " v" + assemblyVersion;
         }
-
-        /// <summary>Gets the file path in the current user's AppData/Roaming folder. The filename will be the current process name by default.
-        /// </summary>
-        /// <returns>string file path in user's AppData/Roaming folder</returns>
-        public string getAppDataPath()
-        {
-            string path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\" + System.Diagnostics.Process.GetCurrentProcess().ProcessName;
-            return path;
-        }
-
-        /// <summary>Returns the currently runnning program's version number.
-        /// </summary>
-        /// <returns>String version number of currently running program.</returns>
-        public string getVersion()
-        {
-            return typeof(LogWriter).Assembly.GetName().Version.ToString();
-        }
-
         #endregion
     }
 }

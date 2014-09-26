@@ -16,6 +16,7 @@ namespace network_drive_utility
         private static bool logsEnabled = false;
         private static bool deduplicate = false;
         private static LogWriter logger = new LogWriter();
+        private static LogWriter globalLog = new LogWriter(Utilities.readAppConfigKey("logPath"), "Log.txt");
 
         /// <summary>Main Entrypoint for the Program
         /// </summary>
@@ -63,6 +64,7 @@ namespace network_drive_utility
                     //Utility Lists
                     List<NetworkConnection> toUnmapDrives;      // Utility List: Maps to be Unmapped
                     List<NetworkConnection> clean_mapDrives;    // Utility List: After Unmapping and Verifying servers.
+                    List<NetworkConnection> newDrives;          // Fileshares that are being added to the allDrives list.
 
                     Statistics stats;                           // Metadata Object
                     #endregion
@@ -107,7 +109,7 @@ namespace network_drive_utility
                     #region** ** 2.5.3 Write Known Drives to Logs
                     foreach (NetworkConnection netCon in xmlDrives)
                     {
-                        output("Blacklisted: " + netCon.toString());
+                        output("Known Shares: " + netCon.toString());
                     }
                     #endregion
                     #endregion
@@ -133,6 +135,8 @@ namespace network_drive_utility
 
                             //Increment the metadata
                             stats.FilesharesUnmapped = stats.FilesharesUnmapped + 1;
+                            //Write to the global log
+                            notice("Unmapping Drive: " + netCon.toString(), true);
                         }
                         catch (Exception e)
                         {
@@ -159,6 +163,12 @@ namespace network_drive_utility
                         }
                         //Write Cleaned List to Logs
                         output("Cleaned List: " + netCon.toString());
+                    }
+                    //Generate list of Newly Found Network Drives
+                    newDrives = clean_mapDrives.Except(xmlDrives, new NetworkConnectionComparer()).ToList();
+                    foreach (NetworkConnection netCon in newDrives)
+                    {
+                        notice("Discovered New Drive: " + netCon.toString(), true);
                     }
 
                     //** 3.5 Combine Cleaned list and Known List
@@ -357,6 +367,31 @@ namespace network_drive_utility
             else
             {
                 logger.Write(message, print);
+            }
+        }
+
+        /// <summary>Standard program output method, determines where to direct output
+        /// </summary>
+        /// <param name="message">Output Message</param>
+        private static void notice(string message)
+        {
+            globalLog.Write(Environment.UserName + "@" + Environment.MachineName + " | " + message, logsEnabled);
+        }
+
+        /// <summary>Standard program output method, Takes boolean value to override the logging setting
+        /// </summary>
+        /// <remarks>Note: If the program is run with the "logging" argument, it will override this.</remarks>
+        /// <param name="message">Output Message</param>
+        /// <param name="print">Boolean value that overrides the default setting.</param>
+        private static void notice(string message, bool print)
+        {
+            if (logsEnabled)
+            {
+                globalLog.Write(Environment.UserName + "@" + Environment.MachineName + " | " + message, true);
+            }
+            else
+            {
+                globalLog.Write(Environment.UserName + "@" + Environment.MachineName + " | " + message, print);
             }
         }
         #endregion
