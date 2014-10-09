@@ -56,6 +56,9 @@ namespace network_drive_utility
                     string blacklistXml_FilePath = Utilities.readAppConfigKey("blacklistXMLPath");
                     string globalXML_FilePath = Utilities.readAppConfigKey("userXMLPath");
 
+                    //Database
+                    DBOperator db = new DBOperator();
+
                     //Lists
                     List<NetworkConnection> mapDrives;          // Currently Mapped Drives
                     List<NetworkConnection> blacklistShares;    // Blacklisted Fileshares
@@ -67,6 +70,7 @@ namespace network_drive_utility
                     List<NetworkConnection> newDrives;          // Fileshares that are being added to the allDrives list.
 
                     Statistics stats;                           // Metadata Object
+
                     #endregion
                 #endregion
 
