@@ -31,6 +31,7 @@ namespace network_drive_utility
         /// <param name="checkColumn">Column to check against</param>
         /// <param name="dataCheck">Value to check against column</param>
         /// <param name="dataToAdd">The row to be added in array format</param>
+        /// <returns>Array value of the row as it exists in the database</returns>
         public string[] addRow(string table, string checkColumn, string dataCheck, string[] dataToAdd)
         {
             string[] existingRow = this.getRow(table, checkColumn, dataCheck);
@@ -165,6 +166,20 @@ namespace network_drive_utility
             }
 
             return row.ToArray<string>();
+        }
+        #endregion
+
+        #region update functions
+
+        /// <summary>Basic Update Executer, executes an update sql command
+        /// </summary>
+        /// <remarks>This is only necessary because the main program is not accessing the sqlDatabase class directly.</remarks>
+        /// <param name="table">table to update</param>
+        /// <param name="setOperations">columns to set</param>
+        /// <param name="whereClause">conditions for subset of rows to update</param>
+        public void updateTable(string table, Dictionary<string, string> setOperations, string whereClause)
+        {
+            database.Update(table, setOperations, whereClause);
         }
         #endregion
 

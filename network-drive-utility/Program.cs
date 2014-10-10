@@ -82,11 +82,13 @@ namespace network_drive_utility
 
                     #region ** 2 Gather Information
                     //** 2.1 Read all XML data
+                    output("1:\tGathering Information...");
                     stats = readMetaData(metaDataXml_FilePath);
                     blacklistShares = getXMLDrives(blacklistXml_FilePath);
                     xmlDrives = getXMLDrives(globalXML_FilePath);
-
-                    //Check the DB to see if the user/computer exists
+                    
+                    // Get List of Network Connections from WMI
+                    mapDrives = getMappedDrives();
 
                     //Insert session information into sqlDB
                     string[] usernameArry = {Environment.UserName};
@@ -94,13 +96,9 @@ namespace network_drive_utility
                     string[] computerArry = { Environment.MachineName };
                     currentComputer = db.addRow("computers", "hostname", computerArry[0], computerArry);
 
-                    //Import xml information into sqldatabase
+                    //Import information into sqldatabase
                     ShareListToSQL(db, xmlDrives, true);
                     ShareListToSQL(db, blacklistShares, false);
-
-                    //** 2.2 Get Currently Mapped Drives
-                    output("1:\tGet list of currently mapped drives from WMI");
-                    mapDrives = getMappedDrives();
 
                     //** 2.5 Write Lists to Logs
                     #region** ** 2.5.1 Write Mapped Drives to Logs
@@ -305,6 +303,62 @@ namespace network_drive_utility
             return cleanedList;
         }
 
+        /// <summary>Takes a list of network connection objects and adds them to a sql database
+        /// </summary>
+        /// <param name="db">DBOperator object to write to database</param>
+        /// <param name="drives">List of network connection shares to add</param>
+        /// <param name="active">Whether the network drive is blacklisted or active</param>
+        private static void ShareListToSQL(DBOperator db, List<NetworkConnection> drives, bool active)
+        {
+            string[] netConServerData;
+            string[] netConShareData;
+            foreach (NetworkConnection netCon in drives)
+            {
+                netConServerData = new string[2]{ netCon.getServerName(), netCon.Domain };
+                string[] currentServer = db.addRow("servers", "hostname", netConServerData[0], netConServerData);
+
+                netConShareData = new string[3] { currentServer[0], netCon.getShareName(), active.ToString() };
+                string[] currentShare = db.addRow("shares", "serverName", netConShareData[1], netConShareData);
+            }
+        }
+
+        private static void BlacklistDriveList(DBOperator db, List<NetworkConnection> drives)
+        {
+            foreach (NetworkConnection netCon in drives)
+            {
+                //check for wildcard
+                if (netCon.getShareName() == "*")
+                {
+                    //deactivate server and all shares of that server
+                    Dictionary<string, string> setClause = new Dictionary<string,string>();
+                    setClause.Add("active", false.ToString());
+                    db.updateTable("servers", setClause,
+                        string.Format("hostname='{0}' AND domain='{1}'", netCon.getServerName(), netCon.Domain));
+                    //NOTE TO SELF: improve the getRow command to allow for multiple where conditions in SELECT statements
+                    //TODO: disable the shares that match the server
+                }
+                else if (netCon.getShareName().Contains('*'))
+                {
+                    //partial wildcard
+                    //sql uses % as a wildcard for any string
+                    string sqlWildcard = netCon.getShareName().Replace(@"\*", "%");
+                    string[] server = db.getRow("servers", "hostname", netCon.getServerName());
+
+                    //deactivate all shares that match the share and server
+                    Dictionary<string, string> setClause = new Dictionary<string,string>();
+                    setClause.Add("active", false.ToString());
+                    db.updateTable("shares", setClause, 
+                        string.Format("shareName='{0}' AND serverID='{1}'", sqlWildcard, server[0]));
+
+                }
+                else
+                {
+                    //no wildcard
+                    //deactivate share only
+                }
+            }
+        }
+
         #endregion
 
         #region Read from XML
@@ -363,31 +417,6 @@ namespace network_drive_utility
             }
 
             return stats;
-        }
-
-        /// <summary>Takes a list of network connection objects and adds them to a sql database
-        /// </summary>
-        /// <param name="db">DBOperator object to write to database</param>
-        /// <param name="drives">List of network connection shares to add</param>
-        /// <param name="active">Whether the network drive is blacklisted or active</param>
-        private static void ShareListToSQL(DBOperator db, List<NetworkConnection> drives, bool active)
-        {
-            foreach(NetworkConnection netCon in drives)
-            {
-                var currentServer = db.getRow("servers", "hostname", netCon.getServerName());
-                if (currentServer.Length == 0)
-                {
-                    //Server is not in the database
-                    db.addNewServer(netCon.getServerName(), netCon.Domain);
-                    currentServer = db.getRow("servers", "hostname", netCon.getServerName());
-                }
-
-                if (db.getRow("shares", "shareName", netCon.getShareName()).Length == 0)
-                {
-                    //share is not in the database
-                    db.addNewShare(Convert.ToInt32(currentServer[0]), netCon.getShareName(), active);
-                }
-            }
         }
 
         #endregion
