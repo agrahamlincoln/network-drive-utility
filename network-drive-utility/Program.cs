@@ -68,25 +68,39 @@ namespace network_drive_utility
                     List<NetworkConnection> toUnmapDrives;      // Utility List: Maps to be Unmapped
                     List<NetworkConnection> clean_mapDrives;    // Utility List: After Unmapping and Verifying servers.
                     List<NetworkConnection> newDrives;          // Fileshares that are being added to the allDrives list.
+                    List<string> dnshosts = new List<string>(); // List to store all hosts to DNSlookup
+                    List<string> DNSDomains = new List<string>();  // List of all domains of each host
 
                     Statistics stats;                           // Metadata Object
+
+                    //SQL Information (to prevent querying multiple times
+                    string[] currentUser;
+                    string[] currentComputer;
 
                     #endregion
                 #endregion
 
                     #region ** 2 Gather Information
-                    //** 2.1 Read Metadata XML
+                    //** 2.1 Read all XML data
                     stats = readMetaData(metaDataXml_FilePath);
+                    blacklistShares = getXMLDrives(blacklistXml_FilePath);
+                    xmlDrives = getXMLDrives(globalXML_FilePath);
+
+                    //Check the DB to see if the user/computer exists
+
+                    //Insert session information into sqlDB
+                    string[] usernameArry = {Environment.UserName};
+                    currentUser = db.addRow("users", "username", usernameArry[0], usernameArry);
+                    string[] computerArry = { Environment.MachineName };
+                    currentComputer = db.addRow("computers", "hostname", computerArry[0], computerArry);
+
+                    //Import xml information into sqldatabase
+                    ShareListToSQL(db, xmlDrives, true);
+                    ShareListToSQL(db, blacklistShares, false);
 
                     //** 2.2 Get Currently Mapped Drives
                     output("1:\tGet list of currently mapped drives from WMI");
                     mapDrives = getMappedDrives();
-
-                    //** 2.3 Get Blacklisted Drives
-                    blacklistShares = getXMLDrives(blacklistXml_FilePath);
-
-                    //** 2.4 Read Current Library of Drives
-                    xmlDrives = getXMLDrives(globalXML_FilePath);
 
                     //** 2.5 Write Lists to Logs
                     #region** ** 2.5.1 Write Mapped Drives to Logs
@@ -155,6 +169,7 @@ namespace network_drive_utility
                     //DNS Pruning, ONLY add new shares that are DNS-able
                     foreach (NetworkConnection netCon in clean_mapDrives)
                     {
+                        dnshosts.Add(netCon.getServerName());
                         if (!netCon.RDNSVerify())
                         {
                             //the host is not dns-able; do not add it to the list
@@ -167,6 +182,10 @@ namespace network_drive_utility
                         }
                         //Write Cleaned List to Logs
                         output("Cleaned List: " + netCon.toString());
+                    }
+                    foreach (string domain in DNSDomains)
+                    {
+
                     }
                     //Generate list of Newly Found Network Drives
                     newDrives = clean_mapDrives.Except(xmlDrives, new NetworkConnectionComparer()).ToList();
@@ -344,6 +363,31 @@ namespace network_drive_utility
             }
 
             return stats;
+        }
+
+        /// <summary>Takes a list of network connection objects and adds them to a sql database
+        /// </summary>
+        /// <param name="db">DBOperator object to write to database</param>
+        /// <param name="drives">List of network connection shares to add</param>
+        /// <param name="active">Whether the network drive is blacklisted or active</param>
+        private static void ShareListToSQL(DBOperator db, List<NetworkConnection> drives, bool active)
+        {
+            foreach(NetworkConnection netCon in drives)
+            {
+                var currentServer = db.getRow("servers", "hostname", netCon.getServerName());
+                if (currentServer.Length == 0)
+                {
+                    //Server is not in the database
+                    db.addNewServer(netCon.getServerName(), netCon.Domain);
+                    currentServer = db.getRow("servers", "hostname", netCon.getServerName());
+                }
+
+                if (db.getRow("shares", "shareName", netCon.getShareName()).Length == 0)
+                {
+                    //share is not in the database
+                    db.addNewShare(Convert.ToInt32(currentServer[0]), netCon.getShareName(), active);
+                }
+            }
         }
 
         #endregion

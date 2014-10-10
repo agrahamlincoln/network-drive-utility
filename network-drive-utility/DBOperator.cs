@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SQLite;
 using System.IO;
 using System.Linq;
@@ -13,98 +14,159 @@ namespace network_drive_utility
         #region constructors
         public DBOperator()
         {
+            database = new SQLiteDatabase();
             if (!File.Exists("network-drive-utility.s3db"))
             {
                 Create();
             }
-
-            database = new SQLiteDatabase();
         }
         #endregion
 
         #region insert functions
-        public void addNewSetting(string setting, string value)
+
+        /// <summary>Function that validates data existence before adding a duplicate row
+        /// </summary>
+        /// <remarks>This does not guarantee duplicates, it only checks a single column</remarks>
+        /// <param name="table">Table to write data to</param>
+        /// <param name="checkColumn">Column to check against</param>
+        /// <param name="dataCheck">Value to check against column</param>
+        /// <param name="dataToAdd">The row to be added in array format</param>
+        public string[] addRow(string table, string checkColumn, string dataCheck, string[] dataToAdd)
+        {
+            string[] existingRow = this.getRow(table, checkColumn, dataCheck);
+            if (existingRow.Length == 0)
+            {
+                //the row does not exist
+                switch (table)
+                {
+                    case "users":
+                        addNewUser(dataToAdd);
+                        break;
+                    case "master":
+                        addNewSetting(dataToAdd);
+                        break;
+                    case "computers":
+                        addNewComputer(dataToAdd);
+                        break;
+                    case "shares":
+                        addNewShare(dataToAdd);
+                        break;
+                    case "servers":
+                        addNewServer(dataToAdd);
+                        break;
+                    case "mappings":
+                        addNewMapping(dataToAdd);
+                        break;
+                    default:
+                        //table not known, don't add
+                        break;
+                }
+                existingRow = this.getRow(table, checkColumn, dataCheck);
+            }
+            return existingRow;
+        }
+
+        public void addNewSetting(string[] dataToAdd)
         {
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertSetting = new Dictionary<string, string>();
-            insertSetting.Add("setting", setting);
-            insertSetting.Add("value", value);
+            insertSetting.Add("setting", dataToAdd[0]);
+            insertSetting.Add("value", dataToAdd[1]);
 
             //execute sql insert command with the dictionary
             database.Insert("master", insertSetting);
         }
 
-        public void addNewUser(string username)
+        public void addNewUser(string[] dataToAdd)
         {
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertUser = new Dictionary<string,string>();
-            insertUser.Add("username", username);
+            insertUser.Add("username", dataToAdd[0]);
 
             //execute sql insert command with the dictionary
             database.Insert("users", insertUser);
         }
 
-        public void addNewComputer(string hostname)
+        public void addNewComputer(string[] dataToAdd)
         {
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertComputer = new Dictionary<string, string>();
-            insertComputer.Add("hostname", hostname);
+            insertComputer.Add("hostname", dataToAdd[0]);
 
             //execute sql insert command with the dictionary
             database.Insert("computers", insertComputer);
         }
 
-        public void addNewServer(string hostname, string domain)
+        public void addNewServer(string[] dataToAdd)
         {
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertServer = new Dictionary<string, string>();
-            insertServer.Add("hostname", hostname);
-            insertServer.Add("domain", domain);
+            insertServer.Add("hostname", dataToAdd[0]);
+            insertServer.Add("active", "true");
+            insertServer.Add("domain", dataToAdd[1]);
 
             //execute sql insert command with the dictionary
             database.Insert("servers", insertServer);
         }
 
-        public void addNewShare(int serverID, string shareName)
+        public void addNewShare(string[] dataToAdd)
         {
+            string active = true.ToString();
+            if (dataToAdd.Length == 3)
+            {
+                active = dataToAdd[2];
+            }
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertShare = new Dictionary<string, string>();
-            insertShare.Add("serverID", serverID.ToString());
-            insertShare.Add("shareName", shareName);
+            insertShare.Add("serverID", dataToAdd[0]);
+            insertShare.Add("shareName", dataToAdd[1]);
+            insertShare.Add("active", active);
 
             //execute sql insert command with the dictionary
             database.Insert("shares", insertShare);
         }
 
-        public void addNewShare(int serverID, string shareName)
-        {
-            //store the column and values to insert in a dictionary
-            Dictionary<string, string> insertShare = new Dictionary<string, string>();
-            insertShare.Add("serverID", serverID.ToString());
-            insertShare.Add("shareName", shareName);
-
-            //execute sql insert command with the dictionary
-            database.Insert("shares", insertShare);
-        }
-
-        public void addNewMapping(int shareID, int userId, int computerID, string letter)
+        public void addNewMapping(string[] dataToAdd)
         {
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertMapping = new Dictionary<string, string>();
-            insertMapping.Add("shareID", shareID.ToString());
-            insertMapping.Add("userID", userId.ToString());
-            insertMapping.Add("computerID", computerID.ToString());
-            insertMapping.Add("letter", letter);
+            insertMapping.Add("shareID", dataToAdd[0]);
+            insertMapping.Add("userID", dataToAdd[1]);
+            insertMapping.Add("computerID", dataToAdd[2]);
+            insertMapping.Add("letter", dataToAdd[3]);
 
             //execute sql insert command with the dictionary
             database.Insert("mappings", insertMapping);
         }
+
         #endregion
 
-        public bool exists(string table, string column, string value)
-        {
+        #region query functions
 
+        /// <summary>Queries a database and returns a row from the table that matches certain criteria
+        /// </summary>
+        /// <remarks>Will only select the first row if multiple rows match</remarks>
+        /// <param name="tableName">table to query</param>
+        /// <param name="columnQuery">column in table to match search term</param>
+        /// <param name="searchTerm">value to match with a column to select only a certain row</param>
+        /// <returns></returns>
+        public string[] getRow(string tableName, string columnQuery, string searchTerm)
+        {
+            List<string> row = new List<string>();
+
+            string qry = string.Format("SELECT * from [{0}] where [{1}] == '{2}'", tableName, columnQuery, searchTerm);
+            DataTable result = database.GetDataTable(qry);
+            if (result.Rows.Count > 0)
+            {
+                for (int i = 0; i < result.Columns.Count; i++)
+                {
+                    row.Add(result.Rows[0][i].ToString());
+                }
+            }
+
+            return row.ToArray<string>();
         }
+        #endregion
 
         //create new database
         public void Create()
@@ -116,7 +178,7 @@ namespace network_drive_utility
                 [ID] integer NOT NULL,
                 [setting] text,
                 [value] text,
-                PRIMARY KEY[ID])";
+                PRIMARY KEY (ID))";
             string create_TblUsers = @"CREATE TABLE [users](
                 [userID] integer NOT NULL,
                 [username] text,
@@ -135,6 +197,7 @@ namespace network_drive_utility
                 [shareID] integer NOT NULL, 
                 [serverID] integer NOT NULL,
                 [shareName] VARCHAR(255),
+                [active] boolean NOT NULL,
                 FOREIGN KEY(serverID) REFERENCES [servers](serverID),
                 PRIMARY KEY(shareID))";
             string create_TblMappings = @"CREATE TABLE [mappings](

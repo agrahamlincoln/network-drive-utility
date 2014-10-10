@@ -72,6 +72,8 @@ namespace network_drive_utility
         public string Domain { get; set; }
         [XmlElement("Persistent")]
         public Boolean Persistent { get; set; }
+        [XmlElement("ServerName")]
+        public string ServerName { get; set; }
 
         #region Constructors
         /// <summary>No-Arg constructor
@@ -81,6 +83,7 @@ namespace network_drive_utility
             this.LocalName = "";
             this.RemoteName = "";
             this.Domain = "";
+            this.ServerName = "";
             this.Persistent = false;
         }
 
@@ -93,6 +96,7 @@ namespace network_drive_utility
             this.LocalName = LocalName;
             this.RemoteName = RemoteName;
             this.Domain = "";
+            this.ServerName = getServerName();
             this.Persistent = false;
         }
 
@@ -107,6 +111,7 @@ namespace network_drive_utility
             this.LocalName = LocalName;
             this.RemoteName = RemoteName;
             this.Domain = UserName;
+            this.ServerName = getServerName();
             this.Persistent = Persistent;
         }
         #endregion
@@ -198,7 +203,7 @@ namespace network_drive_utility
 
             server = Utilities.getToken(this.RemoteName, 2, '\\');
 
-            return server;
+            return server.ToUpper();
         }
 
         /// <summary>Attempts a DNS lookup on the host and puts the server's domain name in the field.

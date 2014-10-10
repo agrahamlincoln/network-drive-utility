@@ -12,6 +12,7 @@ using System.Security.Permissions;
 using System.Security.Principal;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Xml.Serialization;
 
 namespace network_drive_utility
@@ -418,6 +419,21 @@ namespace network_drive_utility
             return String.Join(".", fqdnList.ToArray());
         }
 
+        /// <summary>Parses the Domains from a list of Fully Qualified Domain Names
+        /// </summary>
+        /// <param name="fqdns">List of Fully Qualified Domain names</param>
+        /// <returns>List of only the Domains from all the Fully Qualified Domain Names</returns>
+        public static List<string> GetDomainNames(List<string> fqdns)
+        {
+            List<string> domains = new List<string>();
+            foreach (string fqdn in fqdns)
+            {
+                domains.Add(GetDomainName(fqdn));
+            }
+
+            return domains;
+        }
+
         /// <summary>Parses the Hostname from a Fully Qualified Domain Name
         /// </summary>
         /// <param name="fqdn">Fully qualified domain name of a host</param>
@@ -437,6 +453,67 @@ namespace network_drive_utility
             host = Dns.GetHostEntry(hostname);
             return host.HostName;
         }
+
+
+        /*
+        /// <summary>Asynchronously performs a dns lookup for FQDNs on a list of hosts
+        /// </summary>
+        /// <param name="hosts">A string list of Hostnames or IP Addresses to look up.</param>
+        /// <returns>A string list of resolved hostnames</returns>
+        public static List<string> ASyncGetFQDN(List<string> hosts)
+        {
+            //Lists to use
+            List<IPHostEntry> resolvedHosts = new List<IPHostEntry>();  //list for storing resolved hosts
+            List<string> resolvedHostnames = new List<string>();        //list for resolved hosts in string format
+
+            //asynchronously dns the list
+            foreach (string host in hosts)
+            {
+                Dns.BeginGetHostEntry(host, new AsyncCallback(GetHostEntryCallback), resolvedHosts);
+            }
+
+            lock (resolvedHosts)
+            {
+                //wait until the entire list is resolved before continuing
+                while (resolvedHosts.Count != hosts.Count)
+                {
+                    Monitor.Wait(resolvedHosts);
+                }
+            }
+
+            //convert iphostentry list to string
+            foreach (IPHostEntry host in resolvedHosts)
+            {
+                resolvedHostnames.Add(host.ToString());
+            }
+
+            return resolvedHostnames;
+        }
+
+        /// <summary>Async callback method to execute when each item in the thread finishes
+        /// </summary>
+        /// <param name="result">???</param>
+        private static void GetHostEntryCallback(IAsyncResult result)
+        {
+            try
+            {
+                IPHostEntry hostname = Dns.EndGetHostEntry(result);
+                List<IPHostEntry> hostnameList = (List<IPHostEntry>)result.AsyncState;
+
+                lock (hostnameList)
+                {
+                    hostnameList.Add(hostname);
+
+                    Monitor.PulseAll(hostnameList);
+                }
+            }
+            catch
+            {
+                hostnameList.Add(null);
+                Monitor.PulseAll(hostnameList);
+            }
+        }
+         * */
 
         #endregion
     }
