@@ -12,14 +12,17 @@ Flags (Run these arguments when executing the program)
 - logging - Enables advanced logging to the %appdata% folder
 - dedupe - Enables the deduplicate function which will check the globalfileshare file for duplicate shares
 
-Upcoming/Planned features
-
-- Full Program log
+Full Program log - Detailed information when new fileshares are added and removed
   - Fileshare Unmaps
   - Fileshare Additions
+
+Upcoming/Planned features
+
 - Fileshare Mapping
 - Statistics: count of each fileshare's occurrence
-- Individual user XML files
+- SQLite Support
+  - Full fileshare storage
+  - Individual user mappings list (for all profiles known)
 
 Background
 
