@@ -69,10 +69,16 @@ namespace network_drive_utility
 
         public void addNewSetting(string[] dataToAdd)
         {
+            //Call overloaded function
+            addNewSetting(dataToAdd[0], dataToAdd[1]);
+        }
+
+        public void addNewSetting(string setting, string value)
+        {
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertSetting = new Dictionary<string, string>();
-            insertSetting.Add("setting", dataToAdd[0]);
-            insertSetting.Add("value", dataToAdd[1]);
+            insertSetting.Add("setting", setting);
+            insertSetting.Add("value", value);
 
             //execute sql insert command with the dictionary
             database.Insert("master", insertSetting);

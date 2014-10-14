@@ -98,7 +98,8 @@ namespace network_drive_utility
 
                     //Import information into sqldatabase
                     ShareListToSQL(db, xmlDrives, true);
-                    ShareListToSQL(db, blacklistShares, false);
+                    ShareListToSQL(db, blacklistShares, true);
+                    DeactivateBlacklisted(db, blacklistShares);
 
                     //** 2.5 Write Lists to Logs
                     #region** ** 2.5.1 Write Mapped Drives to Logs
@@ -314,48 +315,64 @@ namespace network_drive_utility
             string[] netConShareData;
             foreach (NetworkConnection netCon in drives)
             {
-                netConServerData = new string[2]{ netCon.getServerName(), netCon.Domain };
+                netConServerData = new string[2] { netCon.getServerName(), netCon.Domain };
                 string[] currentServer = db.addRow("servers", "hostname", netConServerData[0], netConServerData);
 
-                netConShareData = new string[3] { currentServer[0], netCon.getShareName(), active.ToString() };
-                string[] currentShare = db.addRow("shares", "serverName", netConShareData[1], netConShareData);
+                if (!netCon.getShareName().Contains('*'))
+                {
+                    netConShareData = new string[3] { currentServer[0], netCon.getShareName(), active.ToString() };
+                    string[] currentShare = db.addRow("shares", "shareName", netConShareData[1], netConShareData);
+                }
             }
         }
 
-        private static void BlacklistDriveList(DBOperator db, List<NetworkConnection> drives)
+        /// <summary>Blacklists a share or server by setting the "active" column to disabled
+        /// </summary>
+        /// <param name="db">DBOperator object to write to database</param>
+        /// <param name="drives">List of network connection shares to blacklist</param>
+        private static void DeactivateBlacklisted(DBOperator db, List<NetworkConnection> drives)
         {
+            //Set clause
+            Dictionary<string, string> setClause = new Dictionary<string, string>();
+            //Note: 'active' is the same column name in both servers and shares table
+            setClause.Add("active", false.ToString());
+
+            string[] server; //Server row from Table: Servers
+            string whereClause; //Where statement for sql query
+
             foreach (NetworkConnection netCon in drives)
             {
+                //Deactivate shares that match the server
+                server = db.getRow("servers", "hostname", netCon.getServerName());
+
                 //check for wildcard
                 if (netCon.getShareName() == "*")
                 {
-                    //deactivate server and all shares of that server
-                    Dictionary<string, string> setClause = new Dictionary<string,string>();
-                    setClause.Add("active", false.ToString());
-                    db.updateTable("servers", setClause,
-                        string.Format("hostname='{0}' AND domain='{1}'", netCon.getServerName(), netCon.Domain));
-                    //NOTE TO SELF: improve the getRow command to allow for multiple where conditions in SELECT statements
-                    //TODO: disable the shares that match the server
+                    //Deactivate the server
+                    whereClause = string.Format("serverID='{0}' AND domain='{1}'", server[0], netCon.Domain);
+                    db.updateTable("servers", setClause, whereClause);
+
+                    //Match all shares that have the serverID that was just disabled
+                    whereClause = string.Format("serverID='{0}'", server[0]);
                 }
                 else if (netCon.getShareName().Contains('*'))
                 {
                     //partial wildcard
                     //sql uses % as a wildcard for any string
                     string sqlWildcard = netCon.getShareName().Replace(@"\*", "%");
-                    string[] server = db.getRow("servers", "hostname", netCon.getServerName());
 
-                    //deactivate all shares that match the share and server
-                    Dictionary<string, string> setClause = new Dictionary<string,string>();
-                    setClause.Add("active", false.ToString());
-                    db.updateTable("shares", setClause, 
-                        string.Format("shareName='{0}' AND serverID='{1}'", sqlWildcard, server[0]));
-
+                    //mactch all shares on both share and server
+                    whereClause = string.Format("shareName='{0}' AND serverID='{1}'", sqlWildcard, server[0]);
                 }
                 else
                 {
                     //no wildcard
-                    //deactivate share only
+                    //match on only share and server
+                    whereClause = string.Format("shareName='{0}' AND serverID='{1}'", netCon.getShareName(), server[0]);
                 }
+
+                //Update "shares" table 
+                db.updateTable("shares", setClause, whereClause);
             }
         }
 
