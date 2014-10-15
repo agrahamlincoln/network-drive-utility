@@ -70,7 +70,7 @@ namespace network_drive_utility
         public string RemoteName { get; set; }
         [XmlElement("Domain")]
         public string Domain { get; set; }
-        [XmlElement("UsernName")]
+        [XmlElement("UserName")]
         public string UserName { get; set; }
         [XmlElement("Persistent")]
         public Boolean Persistent { get; set; }
@@ -336,13 +336,5 @@ namespace network_drive_utility
         /// <remarks>Hashcodes must be equivalent AS WELL AS the .equals method</remarks>
         /// <returns>0, Everytime.</returns>
         public int GetHashCode(NetworkConnection drive) { return 0; }
-        /*public int GetHashCode(NetworkConnection drive)
-        {
-            string shareName = drive.getShareName();
-
-            //Force Lowercase on RemoteName
-            string ShareName_lower = shareName.ToLower();
-            return ShareName_lower.GetHashCode();
-        }*/
     }
 }

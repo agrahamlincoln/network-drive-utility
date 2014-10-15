@@ -419,21 +419,6 @@ namespace network_drive_utility
             return String.Join(".", fqdnList.ToArray());
         }
 
-        /// <summary>Parses the Domains from a list of Fully Qualified Domain Names
-        /// </summary>
-        /// <param name="fqdns">List of Fully Qualified Domain names</param>
-        /// <returns>List of only the Domains from all the Fully Qualified Domain Names</returns>
-        public static List<string> GetDomainNames(List<string> fqdns)
-        {
-            List<string> domains = new List<string>();
-            foreach (string fqdn in fqdns)
-            {
-                domains.Add(GetDomainName(fqdn));
-            }
-
-            return domains;
-        }
-
         /// <summary>Parses the Hostname from a Fully Qualified Domain Name
         /// </summary>
         /// <param name="fqdn">Fully qualified domain name of a host</param>
