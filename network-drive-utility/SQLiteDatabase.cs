@@ -8,14 +8,15 @@ namespace network_drive_utility
     class SQLiteDatabase
     {
         String dbConnection;
-        LogWriter logger = new LogWriter();
+        public LogWriter Transactlogger = new LogWriter();
+        public LogWriter ErrorLogger = new LogWriter();
 
         /// <summary>
         ///     Default Constructor for SQLiteDatabase Class.
         /// </summary>
         public SQLiteDatabase()
         {
-            dbConnection = "Data Source=network-drive-utility.s3db";
+            dbConnection = "Data Source=data.s3db";
         }
 
         /// <summary>
@@ -60,6 +61,9 @@ namespace network_drive_utility
                 dt.Load(reader);
                 reader.Close();
                 cnn.Close();
+
+                //write sql command to log
+                Transactlogger.Write(sql);
             }
             catch (Exception e)
             {
@@ -81,6 +85,10 @@ namespace network_drive_utility
             mycommand.CommandText = sql;
             int rowsUpdated = mycommand.ExecuteNonQuery();
             cnn.Close();
+
+            //write sql command to log
+            Transactlogger.Write(sql);
+
             return rowsUpdated;
         }
 
@@ -97,6 +105,10 @@ namespace network_drive_utility
             mycommand.CommandText = sql;
             object value = mycommand.ExecuteScalar();
             cnn.Close();
+
+            //write sql command to log
+            Transactlogger.Write(sql);
+
             if (value != null)
             {
                 return value.ToString();
@@ -149,7 +161,7 @@ namespace network_drive_utility
             }
             catch (Exception fail)
             {
-                logger.Write(fail.Message);
+                ErrorLogger.Write(fail.Message);
                 returnCode = false;
             }
             return returnCode;
@@ -179,7 +191,7 @@ namespace network_drive_utility
             }
             catch (Exception fail)
             {
-                logger.Write(fail.Message);
+                ErrorLogger.Write(fail.Message);
                 returnCode = false;
             }
             return returnCode;
@@ -216,8 +228,8 @@ namespace network_drive_utility
         {
             try
             {
-
                 this.ExecuteNonQuery(String.Format("delete from {0};", table));
+
                 return true;
             }
             catch

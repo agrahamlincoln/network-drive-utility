@@ -70,6 +70,8 @@ namespace network_drive_utility
         public string RemoteName { get; set; }
         [XmlElement("Domain")]
         public string Domain { get; set; }
+        [XmlElement("UsernName")]
+        public string UserName { get; set; }
         [XmlElement("Persistent")]
         public Boolean Persistent { get; set; }
         [XmlElement("ServerName")]
@@ -83,6 +85,7 @@ namespace network_drive_utility
             this.LocalName = "";
             this.RemoteName = "";
             this.Domain = "";
+            this.UserName = "";
             this.ServerName = "";
             this.Persistent = false;
         }
@@ -96,6 +99,7 @@ namespace network_drive_utility
             this.LocalName = LocalName;
             this.RemoteName = RemoteName;
             this.Domain = "";
+            this.UserName = "";
             this.ServerName = getServerName();
             this.Persistent = false;
         }
@@ -106,11 +110,12 @@ namespace network_drive_utility
         /// <param name="RemoteName">Full Path of the Network Drive</param>
         /// <param name="UserName">Username and Domain of the user associated to this mapping</param>
         /// <param name="Persistent">Drive Mapping persistence</param>
-        public NetworkConnection(string LocalName, string RemoteName, string UserName, bool Persistent)
+        public NetworkConnection(string LocalName, string RemoteName, string domain, string UserName, bool Persistent)
         {
             this.LocalName = LocalName;
             this.RemoteName = RemoteName;
-            this.Domain = UserName;
+            this.Domain = domain;
+            this.UserName = UserName;
             this.ServerName = getServerName();
             this.Persistent = Persistent;
         }
@@ -147,7 +152,7 @@ namespace network_drive_utility
 
                     if (driveLetter.IsMatch(LocalName))
                     {
-                        drivesFromWMI.Add(new NetworkConnection(LocalName, RemoteName, Domain[0], Persistent));
+                        drivesFromWMI.Add(new NetworkConnection(LocalName, RemoteName, Domain[0], Domain[1], Persistent));
                     }
                 }
             }

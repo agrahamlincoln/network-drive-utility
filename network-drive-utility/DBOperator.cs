@@ -14,27 +14,88 @@ namespace network_drive_utility
         #region constructors
         public DBOperator()
         {
-            database = new SQLiteDatabase();
+            database = new SQLiteDatabase("network-drive-utility.s3db");
             if (!File.Exists("network-drive-utility.s3db"))
             {
                 Create();
             }
+
+            //Get transaction log locations
+            string logPath = getSetting("transLogLocation");
+            string fileName = System.Diagnostics.Process.GetCurrentProcess().ProcessName +"_transactLog.txt";
+
+            //Set logger object in sql database object to provide the correct path/file
+            if (logPath != "")
+                database.Transactlogger.logPath = logPath;
+            database.Transactlogger.fileName = fileName;
         }
         #endregion
 
         #region insert functions
 
+        /// <summary>Adds a new server to the servers table, will not add a duplicate
+        /// </summary>
+        /// <param name="serverName">Hostname of server to add</param>
+        /// <param name="serverDomain">Domain of server to add</param>
+        /// <returns>Row result of selecting the server</returns>
+        public string[] addAndGetServerNoDuplicate(string serverName, string serverDomain)
+        {
+            DateTime dateNow = DateTime.Now;
+            string[] serverData = new string[3] { serverName, serverDomain, dateNow.ToString() };
+            return(addAndGetRow("servers", "hostname", serverData[0], serverData));
+        }
+
+        /// <summary>Adds a new share to the shares table, will not add a duplicate
+        /// </summary>
+        /// <param name="serverID">ID number of the server the share resides on</param>
+        /// <param name="active">Whether the share is active or not</param>
+        /// <param name="shareName">Shared name of the shared drive</param>
+        /// <returns>Row result of selecting the share</returns>
+        public string[] addAndGetShareNoDuplicate(string serverID, bool active, string shareName)
+        {
+            string[] netConShareData = new string[3] { serverID, shareName, active.ToString() };
+            return (addAndGetRow("shares", "shareName", netConShareData[1], netConShareData));
+        }
+
         /// <summary>Function that validates data existence before adding a duplicate row
         /// </summary>
-        /// <remarks>This does not guarantee duplicates, it only checks a single column</remarks>
+        /// <remarks>This does not guarantee duplicates, it is up to the programmer to check enough columns</remarks>
         /// <param name="table">Table to write data to</param>
         /// <param name="checkColumn">Column to check against</param>
         /// <param name="dataCheck">Value to check against column</param>
         /// <param name="dataToAdd">The row to be added in array format</param>
         /// <returns>Array value of the row as it exists in the database</returns>
-        public string[] addRow(string table, string checkColumn, string dataCheck, string[] dataToAdd)
+        public string[] addAndGetRow(string table, string checkColumn, string dataCheck, string[] dataToAdd)
         {
-            string[] existingRow = this.getRow(table, checkColumn, dataCheck);
+            //construct the dictionary
+            Dictionary<string, string> columnChecks = new Dictionary<string, string>();
+            columnChecks.Add(checkColumn, dataCheck);
+
+            //add the row
+            return(addAndGetRow(table, columnChecks, dataToAdd));
+        }
+
+        /// <summary>Function that validates data existence before adding a duplicate row
+        /// </summary>
+        /// <remarks>This does not guarantee duplicates, it is up to the programmer to check enough columns</remarks>
+        /// <param name="table">Table to write data to</param>
+        /// <param name="columnChecks">Column to check against</param>
+        /// <param name="dataToAdd">The row to be added in Array Format</param>
+        /// <returns>Row as it exists in the database</returns>
+        public string[] addAndGetRow(string table, Dictionary<string, string> columnChecks, string[] dataToAdd)
+        {
+            addRow(table, columnChecks, dataToAdd);
+            return(this.getRow(table, columnChecks));
+        }
+
+        /// <summary>Function that validates data existence before adding a duplicate row
+        /// </summary>
+        /// <param name="table">Table to write data to</param>
+        /// <param name="columnChecks">Dictionary storing Columns and Values to check against</param>
+        /// <param name="dataToAdd">The row to be added in array format</param>
+        public void addRow(string table, Dictionary<string, string> columnChecks, string[] dataToAdd)
+        {
+            string[] existingRow = this.getRow(table, columnChecks);
             if (existingRow.Length == 0)
             {
                 //the row does not exist
@@ -62,11 +123,10 @@ namespace network_drive_utility
                         //table not known, don't add
                         break;
                 }
-                existingRow = this.getRow(table, checkColumn, dataCheck);
             }
-            return existingRow;
         }
 
+        #region public void addNew<Table>
         public void addNewSetting(string[] dataToAdd)
         {
             //Call overloaded function
@@ -111,6 +171,7 @@ namespace network_drive_utility
             insertServer.Add("hostname", dataToAdd[0]);
             insertServer.Add("active", "true");
             insertServer.Add("domain", dataToAdd[1]);
+            insertServer.Add("date", dataToAdd[2]);
 
             //execute sql insert command with the dictionary
             database.Insert("servers", insertServer);
@@ -141,28 +202,80 @@ namespace network_drive_utility
             insertMapping.Add("userID", dataToAdd[1]);
             insertMapping.Add("computerID", dataToAdd[2]);
             insertMapping.Add("letter", dataToAdd[3]);
+            insertMapping.Add("username", dataToAdd[4]);
+            insertMapping.Add("date", dataToAdd[5]);
 
             //execute sql insert command with the dictionary
             database.Insert("mappings", insertMapping);
         }
+        #endregion
 
         #endregion
 
         #region query functions
 
+        public string getSetting(string settingName)
+        {
+            string[] row = getRow("master", "setting", settingName);
+            if (row.Length == 0)
+            {
+                return "";
+            }
+            else
+                return row[2];
+        }
+
+        /// <summary>Queries a database and returns a row from a table that matches certain criteria
+        /// </summary>
+        /// <param name="tableName">Table to query</param>
+        /// <param name="column">Column to check against</param>
+        /// <param name="value">Value to find in column</param>
+        /// <returns>First row returned from query</returns>
+        public string[] getRow(string tableName, string column, string value)
+        {
+            Dictionary<string, string> columnChecks = new Dictionary<string, string>();
+            columnChecks.Add(column, value);
+
+            return (getRow(tableName, columnChecks));
+        }
+
+        /// <summary>Queries a database and returns a row from a table that matches certain criteria
+        /// </summary>
+        /// <remarks>Single field where statement select query</remarks>
+        /// <param name="tableName">Table to query</param>
+        /// <param name="columnChecks">Column and Values to check against</param>
+        /// <returns>First row returned from query</returns>
+        public string[] getRow(string tableName, Dictionary<string,string> columnChecks)
+        {
+            List<string> columnList = new List<string>(); //used to store dictionary
+
+            //first part of select statement
+            string selectStatement = string.Format("SELECT * from {0} where ", tableName);
+
+            //Iterate through dictionary and build list
+            foreach (KeyValuePair<String, String> row in columnChecks)
+            {
+                columnList.Add(string.Format("{0} == '{1}'", row.Key, row.Value));
+            }
+
+            //Append the where criteria to the select statement
+            selectStatement += string.Join(" AND ", columnList.ToArray());
+
+            //Perform Query
+            return getRow(selectStatement);
+        }
+
+
         /// <summary>Queries a database and returns a row from the table that matches certain criteria
         /// </summary>
         /// <remarks>Will only select the first row if multiple rows match</remarks>
-        /// <param name="tableName">table to query</param>
-        /// <param name="columnQuery">column in table to match search term</param>
-        /// <param name="searchTerm">value to match with a column to select only a certain row</param>
-        /// <returns></returns>
-        public string[] getRow(string tableName, string columnQuery, string searchTerm)
+        /// <param name="selectClause">SQL Select statement to execute</param>
+        /// <returns>first found Row in string array format</returns>
+        private string[] getRow(string selectClause)
         {
             List<string> row = new List<string>();
 
-            string qry = string.Format("SELECT * from [{0}] where [{1}] == '{2}'", tableName, columnQuery, searchTerm);
-            DataTable result = database.GetDataTable(qry);
+            DataTable result = database.GetDataTable(selectClause);
             if (result.Rows.Count > 0)
             {
                 for (int i = 0; i < result.Columns.Count; i++)
@@ -213,6 +326,7 @@ namespace network_drive_utility
                 [hostname] VARCHAR(15),
                 [active] boolean NOT NULL,
                 [domain] VARCHAR(255),
+                [date] VARCHAR(255),
                 PRIMARY KEY(serverID))";
             string create_TblShares = @"CREATE TABLE [shares](
                 [shareID] integer NOT NULL, 
@@ -226,6 +340,8 @@ namespace network_drive_utility
                 [computerID] integer NOT NULL,
                 [userID] integer NOT NULL,
                 [letter] NVARCHAR(1),
+                [username] text,
+                [date] VARCHAR(255),
                 FOREIGN KEY (shareID) REFERENCES [shares](shareID),
                 FOREIGN KEY (computerID) REFERENCES [computers](computerID),
                 FOREIGN KEY (userID) REFERENCES [users](userID),
