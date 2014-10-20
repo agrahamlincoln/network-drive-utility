@@ -8,21 +8,30 @@ using System.Text;
 
 namespace network_drive_utility
 {
-    class DBOperator
+    sealed class DBOperator
     {
-        SQLiteDatabase database;
+        private SQLiteDatabase database;
         #region constructors
-        public DBOperator()
+
+        /// <summary>No-Arg constructor
+        /// </summary>
+        public DBOperator() : this("") {}
+
+        /// <summary>folderPath constructor
+        /// </summary>
+        /// <param name="folderPath">the folder in which the database exists in</param>
+        public DBOperator(string folderPath)
         {
-            database = new SQLiteDatabase("network-drive-utility.s3db");
-            if (!File.Exists("network-drive-utility.s3db"))
+            string fullPath = folderPath + "\\network-drive-utility.s3db";
+            database = new SQLiteDatabase(fullPath);
+            if (!File.Exists(fullPath))
             {
                 Create();
             }
 
             //Get transaction log locations
             string logPath = GetSetting("transLogLocation");
-            string fileName = System.Diagnostics.Process.GetCurrentProcess().ProcessName +"_transactLog.txt";
+            string fileName = System.Diagnostics.Process.GetCurrentProcess().ProcessName + "_transactLog.txt";
 
             //Set logger object in sql database object to provide the correct path/file
             if (logPath != "")
@@ -31,6 +40,32 @@ namespace network_drive_utility
         }
         #endregion
 
+        /// <summary>Determines in the currentDB is older than 5 minutes old
+        /// </summary>
+        /// <remarks>Realistically, the program will not run for more than 5 minutes, so this should only need to be called once.</remarks>
+        /// <returns>boolean value representing whether the DB is > 5 minutes old or not</returns>
+        public bool isNew()
+        {
+            bool isDBNew = true;
+
+            try
+            {
+                DateTime createDate = DateTime.Parse(GetSetting("dateCreated"));
+                TimeSpan dbAge = DateTime.Now - createDate;
+
+                //if db is older than 5 minutes
+                if (dbAge > new TimeSpan(0, 5, 0))
+                    isDBNew = false;
+            }
+            catch (Exception)
+            {
+                //More than likely this is on a parse error
+                isDBNew = false;
+            }
+
+            return isDBNew;
+        }
+
         #region insert functions
 
         /// <summary>Adds a new server to the servers table, will not add a duplicate
@@ -38,7 +73,7 @@ namespace network_drive_utility
         /// <param name="serverName">Hostname of server to add</param>
         /// <param name="serverDomain">Domain of server to add</param>
         /// <returns>Row result of selecting the server</returns>
-        public string[] AddAndGetServerNoDuplicate(string serverName, string serverDomain)
+        internal string[] AddAndGetServerNoDuplicate(string serverName, string serverDomain)
         {
             DateTime dateNow = DateTime.Now;
             string[] serverData = new string[3] { serverName, serverDomain, dateNow.ToString() };
@@ -51,7 +86,7 @@ namespace network_drive_utility
         /// <param name="active">Whether the share is active or not</param>
         /// <param name="shareName">Shared name of the shared drive</param>
         /// <returns>Row result of selecting the share</returns>
-        public string[] AddAndGetShareNoDuplicate(string serverID, bool active, string shareName)
+        internal string[] AddAndGetShareNoDuplicate(string serverID, bool active, string shareName)
         {
             string[] netConShareData = new string[3] { serverID, shareName, active.ToString() };
             return (AddAndGetRow("shares", "shareName", netConShareData[1], netConShareData));
@@ -65,7 +100,7 @@ namespace network_drive_utility
         /// <param name="dataCheck">Value to check against column</param>
         /// <param name="dataToAdd">The row to be added in array format</param>
         /// <returns>Array value of the row as it exists in the database</returns>
-        public string[] AddAndGetRow(string table, string checkColumn, string dataCheck, string[] dataToAdd)
+        private string[] AddAndGetRow(string table, string checkColumn, string dataCheck, string[] dataToAdd)
         {
             //construct the dictionary
             Dictionary<string, string> columnChecks = new Dictionary<string, string>();
@@ -83,7 +118,7 @@ namespace network_drive_utility
         /// <param name="dataCheck">Value to check against column</param>
         /// <param name="dataToAdd">The row to be added in array format</param>
         /// <returns>Array value of the row as it exists in the database</returns>
-        public string[] AddAndGetRow(string table, string checkColumn, string dataCheck, string dataToAdd)
+        internal string[] AddAndGetRow(string table, string checkColumn, string dataCheck, string dataToAdd)
         {
             //construct the dictionary
             Dictionary<string, string> columnChecks = new Dictionary<string, string>();
@@ -103,7 +138,7 @@ namespace network_drive_utility
         /// <param name="columnChecks">Column to check against</param>
         /// <param name="dataToAdd">The row to be added in Array Format</param>
         /// <returns>Row as it exists in the database</returns>
-        public string[] AddAndGetRow(string table, Dictionary<string, string> columnChecks, string[] dataToAdd)
+        private string[] AddAndGetRow(string table, Dictionary<string, string> columnChecks, string[] dataToAdd)
         {
             AddRow(table, columnChecks, dataToAdd);
             return(this.GetRow(table, columnChecks));
@@ -114,7 +149,7 @@ namespace network_drive_utility
         /// <param name="table">Table to write data to</param>
         /// <param name="columnChecks">Dictionary storing Columns and Values to check against</param>
         /// <param name="dataToAdd">The row to be added in array format</param>
-        public void AddRow(string table, Dictionary<string, string> columnChecks, string[] dataToAdd)
+        internal void AddRow(string table, Dictionary<string, string> columnChecks, string[] dataToAdd)
         {
             string[] existingRow = this.GetRow(table, columnChecks);
             if (existingRow.Length == 0)
@@ -147,14 +182,14 @@ namespace network_drive_utility
             }
         }
 
-        #region public void addNew<Table>
-        public void AddNewSetting(string[] dataToAdd)
+        #region private void addNew<Table>
+        private void AddNewSetting(string[] dataToAdd)
         {
             //Call overloaded function
             AddNewSetting(dataToAdd[0], dataToAdd[1]);
         }
 
-        public void AddNewSetting(string setting, string value)
+        private void AddNewSetting(string setting, string value)
         {
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertSetting = new Dictionary<string, string>();
@@ -165,7 +200,7 @@ namespace network_drive_utility
             database.Insert("master", insertSetting);
         }
 
-        public void AddNewUser(string[] dataToAdd)
+        private void AddNewUser(string[] dataToAdd)
         {
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertUser = new Dictionary<string,string>();
@@ -175,7 +210,7 @@ namespace network_drive_utility
             database.Insert("users", insertUser);
         }
 
-        public void AddNewComputer(string[] dataToAdd)
+        private void AddNewComputer(string[] dataToAdd)
         {
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertComputer = new Dictionary<string, string>();
@@ -185,7 +220,7 @@ namespace network_drive_utility
             database.Insert("computers", insertComputer);
         }
 
-        public void AddNewServer(string[] dataToAdd)
+        private void AddNewServer(string[] dataToAdd)
         {
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertServer = new Dictionary<string, string>();
@@ -198,7 +233,7 @@ namespace network_drive_utility
             database.Insert("servers", insertServer);
         }
 
-        public void AddNewShare(string[] dataToAdd)
+        private void AddNewShare(string[] dataToAdd)
         {
             string active = true.ToString();
             if (dataToAdd.Length == 3)
@@ -215,7 +250,7 @@ namespace network_drive_utility
             database.Insert("shares", insertShare);
         }
 
-        public void AddNewMapping(string[] dataToAdd)
+        private void AddNewMapping(string[] dataToAdd)
         {
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertMapping = new Dictionary<string, string>();
@@ -239,7 +274,7 @@ namespace network_drive_utility
         /// </summary>
         /// <param name="settingName">Key for the table</param>
         /// <returns>string in the setting column, or String.Empty if nothing found</returns>
-        public string GetSetting(string settingName)
+        internal string GetSetting(string settingName)
         {
             string[] row = GetRow("master", "setting", settingName);
             if (row.Length == 0)
@@ -256,7 +291,7 @@ namespace network_drive_utility
         /// <param name="column">Column to check against</param>
         /// <param name="value">Value to find in column</param>
         /// <returns>First row returned from query</returns>
-        public string[] GetRow(string tableName, string column, string value)
+        internal string[] GetRow(string tableName, string column, string value)
         {
             Dictionary<string, string> columnChecks = new Dictionary<string, string>();
             columnChecks.Add(column, value);
@@ -270,7 +305,7 @@ namespace network_drive_utility
         /// <param name="tableName">Table to query</param>
         /// <param name="columnChecks">Column and Values to check against</param>
         /// <returns>First row returned from query</returns>
-        public string[] GetRow(string tableName, Dictionary<string,string> columnChecks)
+        internal string[] GetRow(string tableName, Dictionary<string,string> columnChecks)
         {
             List<string> columnList = new List<string>(); //used to store dictionary
 
@@ -321,14 +356,14 @@ namespace network_drive_utility
         /// <param name="table">table to update</param>
         /// <param name="setOperations">columns to set</param>
         /// <param name="whereClause">conditions for subset of rows to update</param>
-        public void UpdateTable(string table, Dictionary<string, string> setOperations, string whereClause)
+        internal void UpdateTable(string table, Dictionary<string, string> setOperations, string whereClause)
         {
             database.Update(table, setOperations, whereClause);
         }
         #endregion
 
         //create new database
-        public void Create()
+        private void Create()
         {
 
             #region initiaize databases & tables
@@ -395,15 +430,248 @@ namespace network_drive_utility
             #endregion
 
             //set default settings
-            AddNewSetting("logPath", Utilities.readAppConfigKey("logPath"));
-            AddNewSetting("userXMLPath", Utilities.readAppConfigKey("userXMLPath"));
-            AddNewSetting("blacklistXMLPath", Utilities.readAppConfigKey("blacklistXMLPath"));
-            AddNewSetting("metaDataXMLPath", Utilities.readAppConfigKey("metaDataXMLPath"));
+            AddNewSetting("dateCreated", DateTime.Now.ToString());
+            AddNewSetting("dataDir", Utilities.ReadAppConfigKey("dataDir"));
             AddNewSetting("logging", "false");
             AddNewSetting("dedupe", "false");
 
             //close connection
             dbConnection.Close();
+        }
+
+
+        private sealed class SQLiteDatabase
+        {
+            String dbConnection;
+            internal LogWriter Transactlogger = new LogWriter();
+            private LogWriter ErrorLogger = new LogWriter();
+
+            /// <summary>
+            ///     Default Constructor for SQLiteDatabase Class.
+            /// </summary>
+            public SQLiteDatabase()
+            {
+                dbConnection = "Data Source=data.s3db";
+            }
+
+            /// <summary>
+            ///     Single Param Constructor for specifying the DB file.
+            /// </summary>
+            /// <param name="inputFile">The File containing the DB</param>
+            internal SQLiteDatabase(String inputFile)
+            {
+                dbConnection = String.Format("Data Source={0}", inputFile);
+            }
+
+            /// <summary>
+            ///     Single Param Constructor for specifying advanced connection options.
+            /// </summary>
+            /// <param name="connectionOpts">A dictionary containing all desired options and their values</param>
+            internal SQLiteDatabase(Dictionary<String, String> connectionOpts)
+            {
+                String str = "";
+                foreach (KeyValuePair<String, String> row in connectionOpts)
+                {
+                    str += String.Format("{0}={1}; ", row.Key, row.Value);
+                }
+                str = str.Trim().Substring(0, str.Length - 1);
+                dbConnection = str;
+            }
+
+            /// <summary>
+            ///     Allows the programmer to run a query against the Database.
+            /// </summary>
+            /// <param name="sql">The SQL to run</param>
+            /// <returns>A DataTable containing the result set.</returns>
+            internal DataTable GetDataTable(string sql)
+            {
+                DataTable dt = new DataTable();
+                try
+                {
+                    SQLiteConnection cnn = new SQLiteConnection(dbConnection);
+                    cnn.Open();
+                    SQLiteCommand mycommand = new SQLiteCommand(cnn);
+                    mycommand.CommandText = sql;
+                    SQLiteDataReader reader = mycommand.ExecuteReader();
+                    dt.Load(reader);
+                    reader.Close();
+                    cnn.Close();
+
+                    //write sql command to log
+                    Transactlogger.Write(sql);
+                }
+                catch (Exception e)
+                {
+                    throw new Exception(e.Message);
+                }
+                return dt;
+            }
+
+            /// <summary>
+            ///     Allows the programmer to interact with the database for purposes other than a query.
+            /// </summary>
+            /// <param name="sql">The SQL to be run.</param>
+            /// <returns>An Integer containing the number of rows updated.</returns>
+            private int ExecuteNonQuery(string sql)
+            {
+                SQLiteConnection cnn = new SQLiteConnection(dbConnection);
+                cnn.Open();
+                SQLiteCommand mycommand = new SQLiteCommand(cnn);
+                mycommand.CommandText = sql;
+                int rowsUpdated = mycommand.ExecuteNonQuery();
+                cnn.Close();
+
+                //write sql command to log
+                Transactlogger.Write(sql);
+
+                return rowsUpdated;
+            }
+
+            /// <summary>
+            ///     Allows the programmer to retrieve single items from the DB.
+            /// </summary>
+            /// <param name="sql">The query to run.</param>
+            /// <returns>A string.</returns>
+            private string ExecuteScalar(string sql)
+            {
+                SQLiteConnection cnn = new SQLiteConnection(dbConnection);
+                cnn.Open();
+                SQLiteCommand mycommand = new SQLiteCommand(cnn);
+                mycommand.CommandText = sql;
+                object value = mycommand.ExecuteScalar();
+                cnn.Close();
+
+                //write sql command to log
+                Transactlogger.Write(sql);
+
+                if (value != null)
+                {
+                    return value.ToString();
+                }
+                return "";
+            }
+
+            /// <summary>
+            ///     Allows the programmer to easily update rows in the DB.
+            /// </summary>
+            /// <param name="tableName">The table to update.</param>
+            /// <param name="data">A dictionary containing Column names and their new values.</param>
+            /// <param name="where">The where clause for the update statement.</param>
+            /// <returns>A boolean true or false to signify success or failure.</returns>
+            internal bool Update(String tableName, Dictionary<String, String> data, String where)
+            {
+                String vals = "";
+                Boolean returnCode = true;
+                if (data.Count >= 1)
+                {
+                    foreach (KeyValuePair<String, String> val in data)
+                    {
+                        vals += String.Format(" {0} = '{1}',", val.Key.ToString(), val.Value.ToString());
+                    }
+                    vals = vals.Substring(0, vals.Length - 1);
+                }
+                try
+                {
+                    this.ExecuteNonQuery(String.Format("update {0} set {1} where {2};", tableName, vals, where));
+                }
+                catch
+                {
+                    returnCode = false;
+                }
+                return returnCode;
+            }
+
+            /// <summary>
+            ///     Allows the programmer to easily delete rows from the DB.
+            /// </summary>
+            /// <param name="tableName">The table from which to delete.</param>
+            /// <param name="where">The where clause for the delete.</param>
+            /// <returns>A boolean true or false to signify success or failure.</returns>
+            internal bool Delete(String tableName, String where)
+            {
+                Boolean returnCode = true;
+                try
+                {
+                    this.ExecuteNonQuery(String.Format("delete from {0} where {1};", tableName, where));
+                }
+                catch (Exception fail)
+                {
+                    ErrorLogger.Write(fail.Message);
+                    returnCode = false;
+                }
+                return returnCode;
+            }
+
+            /// <summary>
+            ///     Allows the programmer to easily insert into the DB
+            /// </summary>
+            /// <param name="tableName">The table into which we insert the data.</param>
+            /// <param name="data">A dictionary containing the column names and data for the insert.</param>
+            /// <returns>A boolean true or false to signify success or failure.</returns>
+            internal bool Insert(String tableName, Dictionary<String, String> data)
+            {
+                String columns = "";
+                String values = "";
+                Boolean returnCode = true;
+                foreach (KeyValuePair<String, String> val in data)
+                {
+                    columns += String.Format(" {0},", val.Key.ToString());
+                    values += String.Format(" '{0}',", val.Value);
+                }
+                columns = columns.Substring(0, columns.Length - 1);
+                values = values.Substring(0, values.Length - 1);
+                try
+                {
+                    this.ExecuteNonQuery(String.Format("insert into {0}({1}) values({2});", tableName, columns, values));
+                }
+                catch (Exception fail)
+                {
+                    ErrorLogger.Write(fail.Message);
+                    returnCode = false;
+                }
+                return returnCode;
+            }
+
+            /// <summary>
+            ///     Allows the programmer to easily delete all data from the DB.
+            /// </summary>
+            /// <returns>A boolean true or false to signify success or failure.</returns>
+            private bool ClearDB()
+            {
+                DataTable tables;
+                try
+                {
+                    tables = this.GetDataTable("select NAME from SQLITE_MASTER where type='table' order by NAME;");
+                    foreach (DataRow table in tables.Rows)
+                    {
+                        this.ClearTable(table["NAME"].ToString());
+                    }
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            /// <summary>
+            ///     Allows the user to easily clear all data from a specific table.
+            /// </summary>
+            /// <param name="table">The name of the table to clear.</param>
+            /// <returns>A boolean true or false to signify success or failure.</returns>
+            private bool ClearTable(String table)
+            {
+                try
+                {
+                    this.ExecuteNonQuery(String.Format("delete from {0};", table));
+
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
         }
     }
 }

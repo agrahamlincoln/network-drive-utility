@@ -13,10 +13,10 @@ namespace network_drive_utility
     /// </summary>
     /// <remarks>This is primarily used for the serialization process</remarks>
     [XmlRoot("ArrayOfNetworkConnection")]
-    public class NetworkConnectionList
+    sealed internal class NetworkConnectionList
     {
         [XmlArrayItem()]
-        public List<NetworkConnection> Items { get; set; }
+        internal List<NetworkConnection> Items { get; set; }
 
         #region Constructors
 
@@ -30,7 +30,7 @@ namespace network_drive_utility
         /// <summary>All-Args Constructor
         /// </summary>
         /// <param name="list">List to set as instance</param>
-        public NetworkConnectionList(List<NetworkConnection> list)
+        internal NetworkConnectionList(List<NetworkConnection> list)
         {
             Items = list;
         }
@@ -42,7 +42,7 @@ namespace network_drive_utility
     /// <summary>Stores information about a Network Connection, Mimics the structure of Windows WMI queries from root\CIMV2\Win32_NetworkConnection
     /// </summary>
     [XmlRoot("NetworkConnection")]
-    public class NetworkConnection
+    sealed internal class NetworkConnection
     {
         /// <summary>The following block are all used to unmap the drives.
         /// </summary>
@@ -50,18 +50,6 @@ namespace network_drive_utility
         [DllImport("mpr.dll")]
         private static extern int WNetCancelConnection2A(string psName, int piFlags, int pfForce);
         private const int CONNECT_UPDATE_PROFILE = 0x00000001;
-        [StructLayout(LayoutKind.Sequential)]
-        private struct structNetResource
-        {
-            public int iScope;
-            public int iType;
-            public int iDisplayType;
-            public int iUsage;
-            public string sLocalName;
-            public string sRemoteName;
-            public string sComment;
-            public string sProvider;
-        }
 
         //Class Variables
         [XmlElement("LocalName")]
@@ -108,7 +96,8 @@ namespace network_drive_utility
         /// </summary>
         /// <param name="LocalName">Local Drive Letter/Local Name of the Network Drive Mapping</param>
         /// <param name="RemoteName">Full Path of the Network Drive</param>
-        /// <param name="UserName">Username and Domain of the user associated to this mapping</param>
+        /// <param name="domain">Domain of the user associated to this mapping</param>
+        /// <param name="UserName">Username of the user associated to this mapping</param>
         /// <param name="Persistent">Drive Mapping persistence</param>
         public NetworkConnection(string LocalName, string RemoteName, string domain, string UserName, bool Persistent)
         {
@@ -124,7 +113,7 @@ namespace network_drive_utility
         /// <summary>Creates a list of Network Connections from WMI
         /// </summary>
         /// <returns>List of Network Connections from WMI</returns>
-        public static List<NetworkConnection> ListCurrentlyMappedDrives()
+        internal static List<NetworkConnection> ListCurrentlyMappedDrives()
         {
             List<NetworkConnection> drivesFromWMI = new List<NetworkConnection>();
 
@@ -167,7 +156,7 @@ namespace network_drive_utility
         /// <summary>Unmaps the drive using core windows API's
         /// </summary>
         /// <remarks>This code was used from aejw's Network Drive class: build 0015 05/14/2004 aejw.com</remarks>
-        public void unmap()
+        internal void unmap()
         {
             bool force = false;
 			//call unmap and return
@@ -180,7 +169,7 @@ namespace network_drive_utility
         /// <summary>To String method.
         /// </summary>
         /// <returns>Local Drive Letter + Full UNC Path</returns>
-        public string toString()
+        internal string toString()
         {
             string str;
             str = LocalName + "\t" + RemoteName + "\tDomain: " + Domain;
@@ -190,7 +179,7 @@ namespace network_drive_utility
         /// <summary>Splits the full share path and returns only the share name
         /// </summary>
         /// <returns>String - share name</returns>
-        public string getShareName()
+        internal string getShareName()
         {
             string share;
 
@@ -202,7 +191,7 @@ namespace network_drive_utility
         /// <summary>Splits the full share path and returns only the server name
         /// </summary>
         /// <returns>String - server name</returns>
-        public string getServerName()
+        internal string getServerName()
         {
             string server;
 
@@ -213,7 +202,7 @@ namespace network_drive_utility
 
         /// <summary>Attempts a DNS lookup on the host and puts the server's domain name in the field.
         /// </summary>
-        public void DNSVerify()
+        private void DNSVerify()
         {
             try
             {
@@ -228,7 +217,7 @@ namespace network_drive_utility
         /// <summary>Runs the DNSVerify method and returns a boolean value of whether the host was found or not.
         /// </summary>
         /// <returns>Whether the host is found or not</returns>
-        public bool RDNSVerify()
+        internal bool RDNSVerify()
         {
             try
             {

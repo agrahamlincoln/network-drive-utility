@@ -21,7 +21,7 @@ namespace network_drive_utility
     /// </summary>
     /// <remarks>Includes: Error-Logging methods, Alphabet enumeration</remarks>
     /// <remarks>Excludes: Anything that could not be dropped into another application without modification</remarks>
-    class Utilities
+    static class Utilities
     {
         static LogWriter logger = new LogWriter();
 
@@ -30,7 +30,7 @@ namespace network_drive_utility
         /// <summary>Checks the current machine for .NET Installations
         /// </summary>
         /// <returns>Boolean value representing whether .NET 3.5 or greater is installed or not.</returns>
-        public static bool HasNet35()
+        internal static bool HasNet35()
         {
             bool returnValue = false;
             try
@@ -62,7 +62,7 @@ namespace network_drive_utility
         /// <summary>Checks registry on this machine for keys added during .NET installs.
         /// </summary>
         /// <returns>string List of .NET versions installed.</returns>
-        public static List<string> GetVersionFromRegistry()
+        private static List<string> GetVersionFromRegistry()
         {
             List<string> versions = new List<string>();
 
@@ -114,7 +114,7 @@ namespace network_drive_utility
         /// <typeparam name="T">Any type of serializable object stored in a list</typeparam>
         /// <param name="xmlString">string of XML objects to deserialize</param>
         /// <returns>List of Objects deserialized from the string</returns>
-        public static T Deserialize<T>(string xmlString)
+        internal static T Deserialize<T>(string xmlString)
         {
             T result;
 
@@ -127,20 +127,6 @@ namespace network_drive_utility
             return result;
         }
 
-        /// <summary>Serializes a list of objects and writes the serialized obj to a XML file specified
-        /// </summary>
-        /// <typeparam name="T">Any type of serializable object</typeparam>
-        /// <param name="obj">List of serializable objects</param>
-        /// <param name="filePath">Full Path of XML file to write to</param>
-        public static void SerializeToFile<T>(T obj, string filePath)
-        {
-            XmlSerializer serializer = new XmlSerializer(obj.GetType());
-            using (StreamWriter sw = new StreamWriter(filePath))
-            {
-                serializer.Serialize(sw, obj);
-            }
-        }
-
         #endregion
 
         #region Miscellaneous
@@ -149,7 +135,7 @@ namespace network_drive_utility
         /// </summary>
         /// <param name="fullPath">Full UNC Path of the file</param>
         /// <returns>string of the entire file</returns>
-        public static string readFile(string fullPath)
+        internal static string readFile(string fullPath)
         {
             string str;
             //Read json from file on network
@@ -165,7 +151,7 @@ namespace network_drive_utility
         /// <remarks>This code was found on stackoverflow.com http://stackoverflow.com/questions/1410127/c-sharp-test-if-user-has-write-access-to-a-folder </remarks>
         /// <param name="fullPath">Path of folder to check</param>
         /// <returns>Whether the user can write to the path or not</returns>
-        public static bool IsWritable(string fullPath)
+        internal static bool IsWritable(string fullPath)
         {
             bool writable = false;
             try
@@ -218,7 +204,7 @@ namespace network_drive_utility
         /// </summary>
         /// <param name="keyName">name of the XML key</param>
         /// <returns>Value of the XML key</returns>
-        public static string readAppConfigKey(string keyName)
+        internal static string ReadAppConfigKey(string keyName)
         {
             AppSettingsReader appConfig = new AppSettingsReader();
             string value;
@@ -227,13 +213,13 @@ namespace network_drive_utility
             {
                 value = appConfig.GetValue(keyName, typeof(string)).ToString();
             }
-            catch
+            catch (Exception crap)
             {
-                logger.Write("App.Config is missing... Defaulting to XML file in User's AppData folder");
+                logger.Write("App.Config is missing... Defaulting to XML file in User's AppData folder. Stack trace: " + crap.ToString());
                 value = logger.logPath + ".xml";
             }
 
-            //This occurs when the appdata is found but the key is invalid
+            //This occurs when the App.Config is found but the key is invalid
             if (value == null)
             {
                 value = "";
@@ -246,7 +232,7 @@ namespace network_drive_utility
         /// </summary>
         /// <param name="pattern">String Pattern with wildcards</param>
         /// <returns name="regex_pattern">Regular Expression Formatted Pattern</returns>
-        public static string RegexBuild(string pattern)
+        internal static string RegexBuild(string pattern)
         {
             string regex_pattern;
             if (pattern == "" || pattern == null)
@@ -263,28 +249,13 @@ namespace network_drive_utility
             return regex_pattern;
         }
 
-        /// <summary>Matches two strings, ignoring case.
-        /// </summary>
-        /// <param name="str1">String to compare</param>
-        /// <param name="str2">String to compare</param>
-        /// <returns>Boolean value of whether strings match or not.</returns>
-        public static bool matchString_IgnoreCase(string str1, string str2)
-        {
-            bool isMatch = false;
-            if (str1.Equals(str2, StringComparison.OrdinalIgnoreCase))
-            {
-                isMatch = true;
-            }
-            return isMatch;
-        }
-
         /// <summary>Splits a string with the passed delimeter and returns the token specified
         /// </summary>
         /// <param name="str">string to split</param>
         /// <param name="token">index of token to return</param>
         /// <param name="delim">delimeter to split string with</param>
         /// <returns>the resulting token from the string</returns>
-        public static string getToken(string str, int token, char delim)
+        internal static string getToken(string str, int token, char delim)
         {
             string parsed;
             string[] strArray = str.Split(delim);
@@ -300,49 +271,22 @@ namespace network_drive_utility
             return parsed;
         }
 
-        /// <summary>Takes a file path and cleans it up so it does not include any filenames and is only the filepath
-        /// </summary>
-        /// <param name="fullPath">full file/directory path</param>
-        /// <returns>Path of the directory and not any files.</returns>
-        public static string trimPath(string fullPath)
-        {
-            string trimmed;
-
-            //split the string
-            List<string> strArray = fullPath.Split('\\').ToList();
-            //remove the last item
-            strArray.RemoveAt(strArray.Count - 1);
-            //re-join the string
-            trimmed = string.Join("\\", strArray.ToArray());
-
-            return trimmed;
-        }
-
         /// <summary>Parses the Domain from a Fully Qualified Domain Name
         /// </summary>
         /// <param name="fqdn">Fully qualified domain name of a host</param>
         /// <returns>Only the domain name of the passed FQDN</returns>
-        public static string GetDomainName(string fqdn)
+        internal static string GetDomainName(string fqdn)
         {
             List<string> fqdnList = fqdn.Split('.').ToList();
             fqdnList.RemoveAt(0);
             return String.Join(".", fqdnList.ToArray());
         }
 
-        /// <summary>Parses the Hostname from a Fully Qualified Domain Name
-        /// </summary>
-        /// <param name="fqdn">Fully qualified domain name of a host</param>
-        /// <returns>Only the hostname of the passed FQDN</returns>
-        public static string GetHostName(string fqdn)
-        {
-            return getToken(fqdn, 0, '.');
-        }
-
         /// <summary>Performs a DNS lookup and returns the fully qualified domain name.
         /// </summary>
         /// <param name="hostname">Hostname or IP Address to look up</param>
         /// <returns>Fully Qualified Domain Name of the host</returns>
-        public static string GetFQDN(string hostname)
+        internal static string GetFQDN(string hostname)
         {
             IPHostEntry host;
             host = Dns.GetHostEntry(hostname);
@@ -353,7 +297,7 @@ namespace network_drive_utility
         /// </summary>
         /// <param name="str">string to parse for boolean value</param>
         /// <returns>Parsed value or false</returns>
-        public static bool parseBool(string str)
+        internal static bool parseBool(string str)
         {
             bool parsed = false; //Return value - False by default
 

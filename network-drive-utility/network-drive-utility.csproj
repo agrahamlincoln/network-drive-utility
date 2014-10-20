@@ -86,7 +86,6 @@
   <ItemGroup>
     <Compile Include="DBOperator.cs" />
     <Compile Include="LogWriter.cs" />
-    <Compile Include="SQLiteDatabase.cs" />
     <Compile Include="Statistics.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="NetworkConnection.cs" />

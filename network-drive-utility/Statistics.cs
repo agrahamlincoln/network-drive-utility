@@ -10,7 +10,7 @@ namespace network_drive_utility
     /// Number of Fileshares Found, Number of Fileshares Unmapped, 
     /// </summary>
     [XmlRoot("Statistics")]
-    public class Statistics
+    internal struct Statistics
     {
         [XmlElement("FilesharesFound")]
         public int FilesharesFound { get; set; }

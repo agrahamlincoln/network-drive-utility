@@ -11,22 +11,29 @@ namespace network_drive_utility
 {
     /// <summary>Primary class of the application, handles higher level program logic.
     /// </summary>
-    class Program
+    static class Program
     {
         private static bool logsEnabled = false;
         private static bool deduplicate = false;
         private static LogWriter logger = new LogWriter(); //Local logger
         private static LogWriter globalLog = new LogWriter("Log.txt"); //Global Logger
         private static Statistics stats;  // Metadata Object
+        private static DBOperator db;
 
         /// <summary>Main Entrypoint for the Program
         /// </summary>
         /// <param name="args">Program arguments</param>
         public static void Main(string[] args)
         {
-
+            bool appConfigExists = true;    //if app.Config exists or not: default true
             try
             {
+                //check if app.config exists
+                if (string.IsNullOrEmpty(ConfigurationManager.AppSettings["dummyflag"]))
+                {
+                    appConfigExists = false;
+                }
+
                 #region** 1 Initialize Program
                 //** 1.1 Write Log Header
                 Output(logger.header(), true);
@@ -52,8 +59,13 @@ namespace network_drive_utility
                     #region program init
                     //Initialize Program Variables
 
+                    //Set Data Path
+                    string dataPath = "";
+                    if (appConfigExists)
+                        dataPath = Utilities.ReadAppConfigKey("dataDir");
+
                     //Database
-                    DBOperator db = new DBOperator();
+                    db = new DBOperator(dataPath);
 
                     //Lists
                     List<NetworkConnection> mapDrives;          // Currently Mapped Drives
@@ -72,6 +84,8 @@ namespace network_drive_utility
                     string globalLogPath = db.GetSetting("logPath");
                     if (globalLogPath != "")
                         globalLog.logPath = globalLogPath;
+                    else
+                        globalLog.logPath = dataPath;
 
                     #endregion
                 #endregion
@@ -89,9 +103,6 @@ namespace network_drive_utility
                     //Add mappings to database
                     //This method will unmap fileshares that are blacklisted
                     AddMappingListToSQL(db, currentUser[0], currentComputer[0], mapDrives);
-
-                    //NEED TO RECORD STATISTICS NOW
-                    //CREATE REPORTS
                 }
                 Output(Environment.NewLine);
             }
@@ -332,9 +343,9 @@ namespace network_drive_utility
         private static void XML_to_SQL(DBOperator db)
         {
             //File Locations
-            string metaDataXml_FilePath = Utilities.readAppConfigKey("metaDataXMLPath");
-            string blacklistXml_FilePath = Utilities.readAppConfigKey("blacklistXMLPath");
-            string globalXML_FilePath = Utilities.readAppConfigKey("userXMLPath");
+            string metaDataXml_FilePath = Utilities.ReadAppConfigKey("metaDataXMLPath");
+            string blacklistXml_FilePath = Utilities.ReadAppConfigKey("blacklistXMLPath");
+            string globalXML_FilePath = Utilities.ReadAppConfigKey("userXMLPath");
 
             List<NetworkConnection> blacklistShares;    // Blacklisted Fileshares
             List<NetworkConnection> xmlDrives;          // Network Drives from XML File
