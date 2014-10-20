@@ -24,76 +24,6 @@ namespace network_drive_utility
     class Utilities
     {
         static LogWriter logger = new LogWriter();
-        /*
-        #region Log writing
-        
-        const string TIMESTAMP_FORMAT = "MM/dd HH:mm:ss";
-
-        /// <summary>Returns a timestamp in string format.
-        /// </summary>
-        /// <remarks>Uses the Timestamp Format defined in the Constants of this class.</remarks>
-        /// <param name="value">DateTime to change into string</param>
-        /// <returns>Timestamp in string format.</returns>
-        private static string getTimestamp(DateTime value)
-        {
-            return value.ToString(TIMESTAMP_FORMAT);
-        }
-
-        /// <summary>Public method to access the writelog method
-        /// </summary>
-        /// <param name="message">Message to write to log</param>
-        /// <param name="print">Whether to write or not</param>
-        public static void writeLog(string message, bool print)
-        {
-            if (print)
-            {
-                owriteLog(message);
-            }
-        }
-
-        /// <summary>Appends a new message to the end of the log file.
-        /// </summary>
-        /// <remarks>If there is no log file available, this will create one. The log files are stored in the current user's Appdata/Roaming folder.</remarks>
-        /// <param name="message"></param>
-        private static void owriteLog(string message)
-        {
-            string logLocation = appDataPath() + "_log.txt";
-
-            if (!System.IO.File.Exists(logLocation))
-            {
-                using (StreamWriter sw = System.IO.File.CreateText(logLocation))
-                {
-                    sw.WriteLine(getTimestamp(DateTime.Now) + message);
-                }
-            }
-            else
-            {
-                StreamWriter sWriter = new StreamWriter(logLocation, true);
-                sWriter.WriteLine(getTimestamp(DateTime.Now) + "\t" + message);
-
-                sWriter.Close();
-            }
-        }
-
-        /// <summary>Gets the file path in the current user's AppData/Roaming folder. The filename will be the current process name by default.
-        /// </summary>
-        /// <returns>string file path in user's AppData/Roaming folder</returns>
-        public static string appDataPath()
-        {
-            string path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\" + System.Diagnostics.Process.GetCurrentProcess().ProcessName;
-            return path;
-        }
-
-        /// <summary>Returns the currently runnning program's version number.
-        /// </summary>
-        /// <returns>String version number of currently running program.</returns>
-        public static string getVersion()
-        {
-            return typeof(Utilities).Assembly.GetName().Version.ToString();
-        }
-
-        #endregion
-         */
 
         #region .NET Checking
 
@@ -155,23 +85,13 @@ namespace network_drive_utility
                         string sp = versionKey.GetValue("SP", "").ToString();
                         string install = versionKey.GetValue("Install", "").ToString();
                         if (install == "")
-                        { //no install info, must be later.
-                            //writeLog(versionKeyName + "  " + name);
                             versions.Add(versionKeyName);
-                        }
                         else
-                        {
                             if (sp != "" && install == "1")
-                            {
-                                //writeLog(versionKeyName + "  " + name + "  SP" + sp);
                                 versions.Add(versionKeyName);
-                            }
 
-                        }
                         if (name != "")
-                        {
                             continue;
-                        }
                         foreach (string subKeyName in versionKey.GetSubKeyNames())
                         {
                             RegistryKey subKey = versionKey.OpenSubKey(subKeyName);
@@ -179,21 +99,6 @@ namespace network_drive_utility
                             if (name != "")
                                 sp = subKey.GetValue("SP", "").ToString();
                             install = subKey.GetValue("Install", "").ToString();
-                            if (install == "")
-                            { //no install info, must be later.
-                                //writeLog(versionKeyName + "  " + name);
-                            }
-                            else
-                            {
-                                if (sp != "" && install == "1")
-                                {
-                                    //writeLog("  " + subKeyName + "  " + name + "  SP" + sp);
-                                }
-                                else if (install == "1")
-                                {
-                                    //writeLog("  " + subKeyName + "  " + name);
-                                }
-                            }
                         }
                     }
                 }
@@ -260,17 +165,21 @@ namespace network_drive_utility
         /// <remarks>This code was found on stackoverflow.com http://stackoverflow.com/questions/1410127/c-sharp-test-if-user-has-write-access-to-a-folder </remarks>
         /// <param name="fullPath">Path of folder to check</param>
         /// <returns>Whether the user can write to the path or not</returns>
-        public static bool canIWrite(string fullPath)
+        public static bool IsWritable(string fullPath)
         {
             bool writable = false;
             try
             {
+                //Instance variables
                 DirectoryInfo di = new DirectoryInfo(fullPath);
                 DirectorySecurity acl = di.GetAccessControl();
                 AuthorizationRuleCollection rules = acl.GetAccessRules(true, true, typeof(NTAccount));
 
+                //Current user
                 WindowsIdentity currentUser = WindowsIdentity.GetCurrent();
                 WindowsPrincipal principal = new WindowsPrincipal(currentUser);
+
+                //Iterate through rules & verify permissions
                 foreach (AuthorizationRule rule in rules)
                 {
                     FileSystemAccessRule fsAccessRule = rule as FileSystemAccessRule;
@@ -281,16 +190,17 @@ namespace network_drive_utility
                     {
                         NTAccount ntAccount = rule.IdentityReference as NTAccount;
                         if (ntAccount == null)
-                        {
                             continue;
-                        }
 
+                        //User has permissions
                         if (principal.IsInRole(ntAccount.Value))
                         {
                             logger.Write(string.Format("Current user is in role of {0}, has write access", ntAccount.Value));
                             writable = true;
                             continue;
                         }
+
+                        //User has no permissions
                         logger.Write(string.Format("Current user is not in role of {0}, does not have write access", ntAccount.Value));
                     }
                 }
@@ -439,66 +349,31 @@ namespace network_drive_utility
             return host.HostName;
         }
 
-
-        /*
-        /// <summary>Asynchronously performs a dns lookup for FQDNs on a list of hosts
+        /// <summary>Parses a Boolean string using Boolean.Parse and handles exceptions
         /// </summary>
-        /// <param name="hosts">A string list of Hostnames or IP Addresses to look up.</param>
-        /// <returns>A string list of resolved hostnames</returns>
-        public static List<string> ASyncGetFQDN(List<string> hosts)
+        /// <param name="str">string to parse for boolean value</param>
+        /// <returns>Parsed value or false</returns>
+        public static bool parseBool(string str)
         {
-            //Lists to use
-            List<IPHostEntry> resolvedHosts = new List<IPHostEntry>();  //list for storing resolved hosts
-            List<string> resolvedHostnames = new List<string>();        //list for resolved hosts in string format
+            bool parsed = false; //Return value - False by default
 
-            //asynchronously dns the list
-            foreach (string host in hosts)
+            try 
             {
-                Dns.BeginGetHostEntry(host, new AsyncCallback(GetHostEntryCallback), resolvedHosts);
+                parsed = Boolean.Parse(str);
+            }
+            catch (ArgumentException)
+            {
+                //string is null
+                parsed = false;
+            }
+            catch (FormatException)
+            {
+                //string is invalid
+                parsed = false;
             }
 
-            lock (resolvedHosts)
-            {
-                //wait until the entire list is resolved before continuing
-                while (resolvedHosts.Count != hosts.Count)
-                {
-                    Monitor.Wait(resolvedHosts);
-                }
-            }
-
-            //convert iphostentry list to string
-            foreach (IPHostEntry host in resolvedHosts)
-            {
-                resolvedHostnames.Add(host.ToString());
-            }
-
-            return resolvedHostnames;
+            return parsed;
         }
-
-        /// <summary>Async callback method to execute when each item in the thread finishes
-        /// </summary>
-        /// <param name="result">???</param>
-        private static void GetHostEntryCallback(IAsyncResult result)
-        {
-            try
-            {
-                IPHostEntry hostname = Dns.EndGetHostEntry(result);
-                List<IPHostEntry> hostnameList = (List<IPHostEntry>)result.AsyncState;
-
-                lock (hostnameList)
-                {
-                    hostnameList.Add(hostname);
-
-                    Monitor.PulseAll(hostnameList);
-                }
-            }
-            catch
-            {
-                hostnameList.Add(null);
-                Monitor.PulseAll(hostnameList);
-            }
-        }
-         * */
 
         #endregion
     }
