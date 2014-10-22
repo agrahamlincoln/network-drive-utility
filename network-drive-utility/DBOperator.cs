@@ -22,15 +22,15 @@ namespace network_drive_utility
         /// <param name="folderPath">the folder in which the database exists in</param>
         public DBOperator(string folderPath)
         {
-            string fullPath = folderPath + "\\network-drive-utility.s3db";
+            string fullPath = "\\" + folderPath + "\\network-drive-utility.s3db";
             database = new SQLiteDatabase(fullPath);
             if (!File.Exists(fullPath))
             {
-                Create();
+                Create(folderPath);
             }
 
             //Get transaction log locations
-            string logPath = GetSetting("transLogLocation");
+            string logPath = GetSetting("dataDir");
             string fileName = System.Diagnostics.Process.GetCurrentProcess().ProcessName + "_transactLog.txt";
 
             //Set logger object in sql database object to provide the correct path/file
@@ -363,7 +363,7 @@ namespace network_drive_utility
         #endregion
 
         //create new database
-        private void Create()
+        private void Create(string folderPath)
         {
 
             #region initiaize databases & tables
@@ -399,7 +399,7 @@ namespace network_drive_utility
                 [shareID] integer NOT NULL,
                 [computerID] integer NOT NULL,
                 [userID] integer NOT NULL,
-                [letter] NVARCHAR(1),
+                [letter] VARCHAR(2),
                 [username] text,
                 [date] VARCHAR(255),
                 FOREIGN KEY (shareID) REFERENCES [shares](shareID),
@@ -408,8 +408,10 @@ namespace network_drive_utility
                 PRIMARY KEY (shareID, computerID, userID))";
 
             //create db file & connect to it
-            SQLiteConnection.CreateFile("network-drive-utility.s3db");
-            SQLiteConnection dbConnection = new SQLiteConnection("Data Source=network-drive-utility.s3db;");
+            string dataSource = folderPath + "\\network-drive-utility.s3db";
+            // SQLiteConnection.CreateFile(dataSource);
+            string connectionstring = "Data Source=\\" + dataSource + ";";
+            SQLiteConnection dbConnection = new SQLiteConnection(connectionstring);
             dbConnection.Open();
 
             //create sqlcommands
@@ -431,9 +433,8 @@ namespace network_drive_utility
 
             //set default settings
             AddNewSetting("dateCreated", DateTime.Now.ToString());
-            AddNewSetting("dataDir", Utilities.ReadAppConfigKey("dataDir"));
-            AddNewSetting("logging", "false");
-            AddNewSetting("dedupe", "false");
+            AddNewSetting("dataDir", folderPath);
+            AddNewSetting("logging", "true");
 
             //close connection
             dbConnection.Close();
@@ -488,6 +489,9 @@ namespace network_drive_utility
                 DataTable dt = new DataTable();
                 try
                 {
+                    //write sql command to log
+                    Transactlogger.Write(sql);
+
                     SQLiteConnection cnn = new SQLiteConnection(dbConnection);
                     cnn.Open();
                     SQLiteCommand mycommand = new SQLiteCommand(cnn);
@@ -496,14 +500,12 @@ namespace network_drive_utility
                     dt.Load(reader);
                     reader.Close();
                     cnn.Close();
-
-                    //write sql command to log
-                    Transactlogger.Write(sql);
                 }
                 catch (Exception e)
                 {
-                    throw new Exception(e.Message);
+                    ErrorLogger.Write(e.ToString());
                 }
+                Transactlogger.Write("Returned " + dt.Rows.Count + " Row(s)");
                 return dt;
             }
 
@@ -574,8 +576,9 @@ namespace network_drive_utility
                 {
                     this.ExecuteNonQuery(String.Format("update {0} set {1} where {2};", tableName, vals, where));
                 }
-                catch
+                catch (Exception e)
                 {
+                    ErrorLogger.Write(e.ToString());
                     returnCode = false;
                 }
                 return returnCode;

@@ -14,7 +14,6 @@ namespace network_drive_utility
     static class Program
     {
         private static bool logsEnabled = false;
-        private static bool deduplicate = false;
         private static LogWriter logger = new LogWriter(); //Local logger
         private static LogWriter globalLog = new LogWriter("Log.txt"); //Global Logger
         private static Statistics stats;  // Metadata Object
@@ -28,8 +27,7 @@ namespace network_drive_utility
             bool appConfigExists = true;    //if app.Config exists or not: default true
             try
             {
-                //check if app.config exists
-                if (string.IsNullOrEmpty(ConfigurationManager.AppSettings["dummyflag"]))
+                if (Utilities.ReadAppConfigKey("dataDir") == "")
                 {
                     appConfigExists = false;
                 }
@@ -45,7 +43,6 @@ namespace network_drive_utility
                     {
                         Output("Running with arg: " + arg);
                         logsEnabled = (arg == "logging" ? true : false);
-                        deduplicate = (arg == "dedupe" ? true : false);
                     }
                 }
 
@@ -77,11 +74,10 @@ namespace network_drive_utility
                     string[] currentComputer;
 
                     //GATHER SETTINGS FROM SQL
-                    deduplicate = Utilities.parseBool(db.GetSetting("dedupe"));
                     logsEnabled = Utilities.parseBool(db.GetSetting("logging"));
 
                     //Set the Global Log Path to what is in SQL
-                    string globalLogPath = db.GetSetting("logPath");
+                    string globalLogPath = db.GetSetting("dataDir");
                     if (globalLogPath != "")
                         globalLog.logPath = globalLogPath;
                     else
@@ -90,8 +86,9 @@ namespace network_drive_utility
                     #endregion
                 #endregion
 
-                    // Convert deprecated xml files to sql
-                    XML_to_SQL(db);
+                    if (Utilities.ReadAppConfigKey("XMLdir") != "")
+                        // Convert deprecated xml files to sql
+                        XML_to_SQL(db);
                     
                     // Get List of Network Connections from WMI
                     mapDrives = GetMappedDrives();
@@ -104,7 +101,7 @@ namespace network_drive_utility
                     //This method will unmap fileshares that are blacklisted
                     AddMappingListToSQL(db, currentUser[0], currentComputer[0], mapDrives);
                 }
-                Output(Environment.NewLine);
+                Output("Program Exited Successfully." + Environment.NewLine);
             }
             catch (Exception e)
             {
@@ -156,12 +153,11 @@ namespace network_drive_utility
         private static void AddShare(DBOperator db, NetworkConnection NetCon, bool active)
         {
             string[] currentServer = db.AddAndGetServerNoDuplicate(NetCon.getServerName(), NetCon.Domain);
-            string[] currentShare;
 
             if (NetCon.getShareName() != "*")
             {
                 //share is not only a wildcard
-                currentShare = db.AddAndGetShareNoDuplicate(currentServer[0], active, NetCon.getShareName());
+                db.AddAndGetShareNoDuplicate(currentServer[0], active, NetCon.getShareName());
             }
         }
 
@@ -233,46 +229,60 @@ namespace network_drive_utility
                 //check existing rows
                 server = db.GetRow("servers", "hostname", netCon.getServerName());
 
+                if (server.Length == 0)
+                {
+                    //server does not exist in SQL
+                    if (netCon.RDNSVerify())
+                    {
+                        //DNS resolves: add server to SQL
+                        Notice("Found New Server: " + netCon.getServerName() + " @ " + netCon.Domain, true);
+                        server = db.AddAndGetServerNoDuplicate(netCon.getServerName(), netCon.Domain);
+                    }
+                    else
+                    {
+                        //Server does not resolve & does not exist in SQL
+                        //Don't add share, don't add server, don't unmap share
+                        continue; //Proceed to the next share
+                    }
+                }
+
                 //construct the dictionary to check if share exists
-                Dictionary<string, string> shareExistsCheck = new Dictionary<string,string>();
+                Dictionary<string, string> shareExistsCheck = new Dictionary<string, string>();
                 shareExistsCheck.Add("serverID", server[0]);
                 shareExistsCheck.Add("shareName", netCon.getShareName());
 
                 //check the shares table
                 share = db.GetRow("shares", shareExistsCheck);
 
-                //construct the dictionary to check if the mapping exists
-                Dictionary<string, string> mappingExistsCheck = new Dictionary<string,string>();
-                mappingExistsCheck.Add("shareID", share[0]);
-                mappingExistsCheck.Add("computerID", computerID);
-                mappingExistsCheck.Add("userID", userID);
+                if (share.Length == 0)
+                {
+                    //share does not exist in SQL: add it
+                    Notice("Discovered New Drive: " + netCon.RemoteName + " Domain: " + netCon.Domain, true);
+                    AddShare(db, netCon, true);
 
-                //construct a string array with the new row
-                string[] mappingsRow = new string[6] { share[0], computerID, userID, netCon.LocalName, netCon.UserName, dateNow.ToString() };
-                
-                if (server.Length == 0) //if server doesnt exist in SQL
-                {
-                    //Check if server resolves in a DNS lookup
-                    if (netCon.RDNSVerify())
-                    {
-                        AddShare(db, netCon, true);
-                        db.AddRow("mappings", mappingExistsCheck, mappingsRow);
-                    }
+                    //requery the share
+                    share = db.GetRow("shares", shareExistsCheck);
                 }
-                else
+
+                if (share[3] == "false")
                 {
-                    if (share[3] == "false")
-                    {
-                        //share is blacklisted
-                        netCon.unmap();
-                        Notice("Unmapping Drive: " + netCon.toString(), true);
-                        stats.FilesharesUnmapped += 1;
-                    }
-                    else {
-                        //Add share regardless of DNS
-                        AddShare(db, netCon, true);
-                        db.AddRow("mappings", mappingExistsCheck, mappingsRow);
-                    }
+                    //share is blacklisted
+                    netCon.unmap();
+                    Notice("Unmapping Drive: " + netCon.toString(), true);
+                    stats.FilesharesUnmapped += 1;
+                }
+                else //Add the mapping to the DB
+                {
+                    //construct the dictionary to check if the mapping exists
+                    Dictionary<string, string> mappingExistsCheck = new Dictionary<string, string>();
+                    mappingExistsCheck.Add("shareID", share[0]);
+                    mappingExistsCheck.Add("computerID", computerID);
+                    mappingExistsCheck.Add("userID", userID);
+
+                    //construct a string array with the new row
+                    string[] mappingsRow = new string[6] { share[0], computerID, userID, netCon.LocalName, netCon.UserName, dateNow.ToString() };
+
+                    db.AddRow("mappings", mappingExistsCheck, mappingsRow);
                 }
             }
         }
@@ -300,9 +310,10 @@ namespace network_drive_utility
                     Output("XML file does not exist");
                 }
             }
-            catch
+            catch (Exception crap)
             {
                 Output("Error Deserializing the File: \n" + filePath);
+                Output("Stack trace for error: " + crap.ToString());
             }
             return xmlDrives;
         }
@@ -343,16 +354,14 @@ namespace network_drive_utility
         private static void XML_to_SQL(DBOperator db)
         {
             //File Locations
-            string metaDataXml_FilePath = Utilities.ReadAppConfigKey("metaDataXMLPath");
-            string blacklistXml_FilePath = Utilities.ReadAppConfigKey("blacklistXMLPath");
-            string globalXML_FilePath = Utilities.ReadAppConfigKey("userXMLPath");
+            string xmlDir = Utilities.ReadAppConfigKey("XMLdir");
 
             List<NetworkConnection> blacklistShares;    // Blacklisted Fileshares
             List<NetworkConnection> xmlDrives;          // Network Drives from XML File
 
-            stats = ReadMetaData(metaDataXml_FilePath);
-            blacklistShares = GetXMLDrives(blacklistXml_FilePath);
-            xmlDrives = GetXMLDrives(globalXML_FilePath);
+            stats = ReadMetaData(xmlDir + "\\MetaData.xml");
+            blacklistShares = GetXMLDrives(xmlDir + "\\blacklist.xml");
+            xmlDrives = GetXMLDrives(xmlDir + "\\global.xml");
 
             //Import information into sqldatabase FROM XML
             ShareListToSQL(db, xmlDrives, true);

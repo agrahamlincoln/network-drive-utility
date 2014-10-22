@@ -204,6 +204,7 @@ namespace network_drive_utility
         /// </summary>
         /// <param name="keyName">name of the XML key</param>
         /// <returns>Value of the XML key</returns>
+        /// <returns>"not found" - if app.config is not found.</returns>
         internal static string ReadAppConfigKey(string keyName)
         {
             AppSettingsReader appConfig = new AppSettingsReader();
@@ -216,7 +217,7 @@ namespace network_drive_utility
             catch (Exception crap)
             {
                 logger.Write("App.Config is missing... Defaulting to XML file in User's AppData folder. Stack trace: " + crap.ToString());
-                value = logger.logPath + ".xml";
+                value = "";
             }
 
             //This occurs when the App.Config is found but the key is invalid

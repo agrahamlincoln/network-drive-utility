@@ -93,9 +93,7 @@
     <Compile Include="Utilities.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config">
-      <SubType>Designer</SubType>
-    </None>
+    <None Include="App.config" />
     <None Include="network-drive-utility_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>

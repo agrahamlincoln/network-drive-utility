@@ -13,10 +13,10 @@ namespace network_drive_utility
     /// </summary>
     /// <remarks>This is primarily used for the serialization process</remarks>
     [XmlRoot("ArrayOfNetworkConnection")]
-    sealed internal class NetworkConnectionList
+    sealed public class NetworkConnectionList
     {
         [XmlArrayItem()]
-        internal List<NetworkConnection> Items { get; set; }
+        public List<NetworkConnection> Items { get; set; }
 
         #region Constructors
 
@@ -30,7 +30,7 @@ namespace network_drive_utility
         /// <summary>All-Args Constructor
         /// </summary>
         /// <param name="list">List to set as instance</param>
-        internal NetworkConnectionList(List<NetworkConnection> list)
+        public NetworkConnectionList(List<NetworkConnection> list)
         {
             Items = list;
         }
@@ -42,7 +42,7 @@ namespace network_drive_utility
     /// <summary>Stores information about a Network Connection, Mimics the structure of Windows WMI queries from root\CIMV2\Win32_NetworkConnection
     /// </summary>
     [XmlRoot("NetworkConnection")]
-    sealed internal class NetworkConnection
+    sealed public class NetworkConnection
     {
         /// <summary>The following block are all used to unmap the drives.
         /// </summary>
