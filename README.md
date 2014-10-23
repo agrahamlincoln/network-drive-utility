@@ -7,10 +7,11 @@ This program has the following features:
 - Enumerate a list of Network Drives utilized in your network
 - Unmap unwanted fileshares using a blacklist (with wildcard support)
 - Generate statistics about fileshares used in your network.
+- SQLite Support
+- Small footprint
 
 Flags (Run these arguments when executing the program)
 - logging - Enables advanced logging to the %appdata% folder
-- dedupe - Enables the deduplicate function which will check the globalfileshare file for duplicate shares
 
 Full Program log - Detailed information when new fileshares are added and removed
   - Fileshare Unmaps
@@ -20,9 +21,6 @@ Upcoming/Planned features
 
 - Fileshare Mapping
 - Statistics: count of each fileshare's occurrence
-- SQLite Support
-  - Full fileshare storage
-  - Individual user mappings list (for all profiles known)
 
 Background
 
