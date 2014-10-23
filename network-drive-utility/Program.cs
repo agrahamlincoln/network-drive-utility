@@ -95,7 +95,7 @@ namespace network_drive_utility
 
                     //Insert session information into sqlDB
                     currentUser = db.AddAndGetRow("users", "username", Environment.UserName, Environment.UserName);
-                    currentComputer = db.AddAndGetRow("computers", "hostname", Environment.UserName, Environment.UserName);
+                    currentComputer = db.AddAndGetRow("computers", "hostname", Environment.MachineName, Environment.MachineName);
 
                     //Add mappings to database
                     //This method will unmap fileshares that are blacklisted
@@ -235,7 +235,8 @@ namespace network_drive_utility
                     if (netCon.RDNSVerify())
                     {
                         //DNS resolves: add server to SQL
-                        Notice("Found New Server: " + netCon.getServerName() + " @ " + netCon.Domain, true);
+                        string notice = string.Format("{0,20}: {1}.{2}", "Found New Server", netCon.getServerName(), netCon.Domain);
+                        Notice(notice, true);
                         server = db.AddAndGetServerNoDuplicate(netCon.getServerName(), netCon.Domain);
                     }
                     else
@@ -257,7 +258,8 @@ namespace network_drive_utility
                 if (share.Length == 0)
                 {
                     //share does not exist in SQL: add it
-                    Notice("Discovered New Drive: " + netCon.RemoteName + " Domain: " + netCon.Domain, true);
+                    string notice = string.Format("{0,20}: {1,30} Domain: {2,-25}", "Discovered New Drive", netCon.RemoteName, netCon.Domain);
+                    Notice(notice, true);
                     AddShare(db, netCon, true);
 
                     //requery the share
@@ -268,7 +270,8 @@ namespace network_drive_utility
                 {
                     //share is blacklisted
                     netCon.unmap();
-                    Notice("Unmapping Drive: " + netCon.toString(), true);
+                    string notice = string.Format("{0,20}: {1}", "Unmapping Drive", netCon.toString());
+                    Notice(notice, true);
                     stats.FilesharesUnmapped += 1;
                 }
                 else //Add the mapping to the DB
@@ -404,13 +407,14 @@ namespace network_drive_utility
         /// <param name="print">Boolean value that overrides the default setting.</param>
         private static void Notice(string message, bool print)
         {
+            string logMessage = string.Format("{0,15}@{1,-15} | {2}", Environment.UserName, Environment.MachineName, message);
             if (logsEnabled)
             {
-                globalLog.Write(Environment.UserName + "@" + Environment.MachineName + " | " + message, true);
+                globalLog.Write(logMessage, true);
             }
             else
             {
-                globalLog.Write(Environment.UserName + "@" + Environment.MachineName + " | " + message, print);
+                globalLog.Write(logMessage, print);
             }
         }
         #endregion

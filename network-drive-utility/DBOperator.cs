@@ -255,8 +255,8 @@ namespace network_drive_utility
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertMapping = new Dictionary<string, string>();
             insertMapping.Add("shareID", dataToAdd[0]);
-            insertMapping.Add("userID", dataToAdd[1]);
-            insertMapping.Add("computerID", dataToAdd[2]);
+            insertMapping.Add("computerID", dataToAdd[1]);
+            insertMapping.Add("userID", dataToAdd[2]);
             insertMapping.Add("letter", dataToAdd[3]);
             insertMapping.Add("username", dataToAdd[4]);
             insertMapping.Add("date", dataToAdd[5]);
