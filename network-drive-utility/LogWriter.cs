@@ -6,7 +6,7 @@ using System.Text;
 
 namespace network_drive_utility
 {
-    class LogWriter
+    sealed class LogWriter
     {
         // Class Variables
         public string logPath { get; set; }
@@ -21,14 +21,14 @@ namespace network_drive_utility
             this.assemblyVersion = getVersion();
         }
 
-        public LogWriter(string filepath)
+        internal LogWriter(string filepath)
         {
             this.logPath = filepath;
             this.fileName = getProcessName() + "_log.txt";
             this.assemblyVersion = getVersion();
         }
 
-        public LogWriter(string filepath, string fileName)
+        internal LogWriter(string filepath, string fileName)
         {
             this.logPath = filepath;
             this.fileName = fileName;
@@ -39,7 +39,7 @@ namespace network_drive_utility
         /// <summary>Gets the file path in the current user's AppData/Roaming folder. The filename will be the current process name by default.
         /// </summary>
         /// <returns>string file path in user's AppData/Roaming folder</returns>
-        public string getAppDataPath()
+        private static string getAppDataPath()
         {
             string path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             return path;
@@ -48,7 +48,7 @@ namespace network_drive_utility
         /// <summary>Gets the current process name
         /// </summary>
         /// <returns>Process Name for this application</returns>
-        public string getProcessName()
+        private static string getProcessName()
         {
             string process = System.Diagnostics.Process.GetCurrentProcess().ProcessName;
             return process;
@@ -57,7 +57,7 @@ namespace network_drive_utility
         /// <summary>Returns the currently runnning program's version number.
         /// </summary>
         /// <returns>String version number of currently running program.</returns>
-        public string getVersion()
+        private string getVersion()
         {
             return typeof(LogWriter).Assembly.GetName().Version.ToString();
         }
@@ -72,7 +72,7 @@ namespace network_drive_utility
         /// <remarks>Uses the Timestamp Format defined in the Constants of this class.</remarks>
         /// <param name="value">DateTime to change into string</param>
         /// <returns>Timestamp in string format.</returns>
-        private string getTimestamp(DateTime value)
+        private static string getTimestamp(DateTime value)
         {
             return value.ToString(TIMESTAMP_FORMAT);
         }
@@ -81,7 +81,7 @@ namespace network_drive_utility
         /// </summary>
         /// <param name="message">Message to write to log</param>
         /// <param name="print">Whether to write or not</param>
-        public void Write(string message, bool print)
+        internal void Write(string message, bool print)
         {
             if (print)
             {
@@ -93,7 +93,7 @@ namespace network_drive_utility
         /// </summary>
         /// <param name="message">Message to write to log</param>
         /// <param name="print">Whether to write or not</param>
-        public void Write(string message)
+        internal void Write(string message)
         {
             oWrite(message);
         }
@@ -125,7 +125,7 @@ namespace network_drive_utility
         /// <summary> Creates a string header with program name and version. Typically used at the beginning of the program.
         /// </summary>
         /// <returns>string program header for log file.</returns>
-        public string header()
+        internal string header()
         {
             return "Now Running: " + System.Diagnostics.Process.GetCurrentProcess().ProcessName + " v" + assemblyVersion;
         }
