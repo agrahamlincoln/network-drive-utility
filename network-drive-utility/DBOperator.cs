@@ -80,7 +80,7 @@ namespace network_drive_utility
             return(AddAndGetRow("servers", "hostname", serverData[0], serverData));
         }
 
-        /// <summary>Adds a new share to the shares table, will not add a duplicate
+        /// <summary>Adds a new share to the shares table
         /// </summary>
         /// <param name="serverID">ID number of the server the share resides on</param>
         /// <param name="active">Whether the share is active or not</param>
@@ -89,7 +89,11 @@ namespace network_drive_utility
         internal string[] AddAndGetShareNoDuplicate(string serverID, bool active, string shareName)
         {
             string[] netConShareData = new string[3] { serverID, shareName, active.ToString() };
-            return (AddAndGetRow("shares", "shareName", netConShareData[1], netConShareData));
+            Dictionary<string, string> columnChecks = new Dictionary<string, string>();
+            columnChecks.Add("serverID", netConShareData[0]);
+            columnChecks.Add("shareName", netConShareData[1]);
+
+            return (AddAndGetRow("shares", columnChecks, netConShareData));
         }
 
         /// <summary>Function that validates data existence before adding a duplicate row
