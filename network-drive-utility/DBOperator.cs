@@ -77,9 +77,10 @@ namespace network_drive_utility
         {
             DateTime dateNow = DateTime.Now;
             string[] serverData = new string[3] { serverName, serverDomain, dateNow.ToString() };
+            serverData = serverData.Select(s => s.ToUpperInvariant()).ToArray();
 
             Dictionary<string, string> columnChecks = new Dictionary<string, string>();
-            columnChecks.Add("hostname", serverName);
+            columnChecks.Add("hostname", serverData[0]);
 
             return(AddAndGetRow("servers", columnChecks, serverData));
         }
@@ -106,6 +107,7 @@ namespace network_drive_utility
         internal string[] AddAndGetShare(string serverID, bool active, string shareName)
         {
             string[] netConShareData = new string[3] { serverID, shareName, active.ToString() };
+            netConShareData = netConShareData.Select(s => s.ToUpperInvariant()).ToArray();
             Dictionary<string, string> columnChecks = new Dictionary<string, string>();
             columnChecks.Add("serverID", netConShareData[0]);
             columnChecks.Add("shareName", netConShareData[1]);
@@ -125,10 +127,10 @@ namespace network_drive_utility
         {
             //construct the dictionary
             Dictionary<string, string> columnChecks = new Dictionary<string, string>();
-            columnChecks.Add(checkColumn, dataCheck);
+            columnChecks.Add(checkColumn, dataCheck.ToUpperInvariant());
 
             //create single-element array
-            string[] _dataToAdd = { dataToAdd };
+            string[] _dataToAdd = { dataToAdd.ToUpperInvariant() };
 
             //add the row
             return (AddAndGetRow(table, columnChecks, _dataToAdd));
@@ -164,6 +166,8 @@ namespace network_drive_utility
 
         private void AddNew(string table, string[] dataToAdd)
         {
+            //cast all string values to uppercase
+            dataToAdd = dataToAdd.Select(s => s.ToUpperInvariant()).ToArray();
             switch (table)
             {
                 case "users":
@@ -508,7 +512,7 @@ namespace network_drive_utility
                     ErrorLogger.Write(e.ToString());
                 }
 
-                if (dt.Rows.Count > 1)
+                if (dt.Rows.Count != 1)
                     Transactlogger.Write("Returned " + dt.Rows.Count + " Row(s)");
                 return dt;
             }
