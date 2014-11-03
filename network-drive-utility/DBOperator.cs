@@ -73,11 +73,28 @@ namespace network_drive_utility
         /// <param name="serverName">Hostname of server to add</param>
         /// <param name="serverDomain">Domain of server to add</param>
         /// <returns>Row result of selecting the server</returns>
-        internal string[] AddAndGetServerNoDuplicate(string serverName, string serverDomain)
+        internal string[] AddAndGetServer(string serverName, string serverDomain)
         {
             DateTime dateNow = DateTime.Now;
             string[] serverData = new string[3] { serverName, serverDomain, dateNow.ToString() };
-            return(AddAndGetRow("servers", "hostname", serverData[0], serverData));
+
+            Dictionary<string, string> columnChecks = new Dictionary<string, string>();
+            columnChecks.Add("hostname", serverName);
+
+            return(AddAndGetRow("servers", columnChecks, serverData));
+        }
+
+        /// <summary>Add a new 'setting' to the Master table, will not add a duplicate
+        /// </summary>
+        /// <param name="setting">Name of the setting to change</param>
+        /// <param name="value">Value of the setting</param>
+        internal void AddSetting(string setting, string value)
+        {
+            string[] settingData = { setting, value };
+            Dictionary<string, string> columnChecks = new Dictionary<string, string>();
+            columnChecks.Add(setting, value);
+
+            AddRow("master", columnChecks, settingData);
         }
 
         /// <summary>Adds a new share to the shares table
@@ -86,7 +103,7 @@ namespace network_drive_utility
         /// <param name="active">Whether the share is active or not</param>
         /// <param name="shareName">Shared name of the shared drive</param>
         /// <returns>Row result of selecting the share</returns>
-        internal string[] AddAndGetShareNoDuplicate(string serverID, bool active, string shareName)
+        internal string[] AddAndGetShare(string serverID, bool active, string shareName)
         {
             string[] netConShareData = new string[3] { serverID, shareName, active.ToString() };
             Dictionary<string, string> columnChecks = new Dictionary<string, string>();
@@ -96,25 +113,7 @@ namespace network_drive_utility
             return (AddAndGetRow("shares", columnChecks, netConShareData));
         }
 
-        /// <summary>Function that validates data existence before adding a duplicate row
-        /// </summary>
-        /// <remarks>This does not guarantee duplicates, it is up to the programmer to check enough columns</remarks>
-        /// <param name="table">Table to write data to</param>
-        /// <param name="checkColumn">Column to check against</param>
-        /// <param name="dataCheck">Value to check against column</param>
-        /// <param name="dataToAdd">The row to be added in array format</param>
-        /// <returns>Array value of the row as it exists in the database</returns>
-        private string[] AddAndGetRow(string table, string checkColumn, string dataCheck, string[] dataToAdd)
-        {
-            //construct the dictionary
-            Dictionary<string, string> columnChecks = new Dictionary<string, string>();
-            columnChecks.Add(checkColumn, dataCheck);
-
-            //add the row
-            return(AddAndGetRow(table, columnChecks, dataToAdd));
-        }
-
-        /// <summary>Function that validates data existence before adding a duplicate row
+        /// <summary>Function that validates data existence before adding a duplicate row using a single column check and a single column data value
         /// </summary>
         /// <remarks>This does not guarantee duplicates, it is up to the programmer to check enough columns</remarks>
         /// <param name="table">Table to write data to</param>
@@ -159,46 +158,45 @@ namespace network_drive_utility
             if (existingRow.Length == 0)
             {
                 //the row does not exist
-                switch (table)
-                {
-                    case "users":
-                        AddNewUser(dataToAdd);
-                        break;
-                    case "master":
-                        AddNewSetting(dataToAdd);
-                        break;
-                    case "computers":
-                        AddNewComputer(dataToAdd);
-                        break;
-                    case "shares":
-                        AddNewShare(dataToAdd);
-                        break;
-                    case "servers":
-                        AddNewServer(dataToAdd);
-                        break;
-                    case "mappings":
-                        AddNewMapping(dataToAdd);
-                        break;
-                    default:
-                        //table not known, don't add
-                        break;
-                }
+                AddNew(table, dataToAdd);
+            }
+        }
+
+        private void AddNew(string table, string[] dataToAdd)
+        {
+            switch (table)
+            {
+                case "users":
+                    AddNewUser(dataToAdd);
+                    break;
+                case "master":
+                    AddNewSetting(dataToAdd);
+                    break;
+                case "computers":
+                    AddNewComputer(dataToAdd);
+                    break;
+                case "shares":
+                    AddNewShare(dataToAdd);
+                    break;
+                case "servers":
+                    AddNewServer(dataToAdd);
+                    break;
+                case "mappings":
+                    AddNewMapping(dataToAdd);
+                    break;
+                default:
+                    //table not known, don't add
+                    break;
             }
         }
 
         #region private void addNew<Table>
         private void AddNewSetting(string[] dataToAdd)
         {
-            //Call overloaded function
-            AddNewSetting(dataToAdd[0], dataToAdd[1]);
-        }
-
-        private void AddNewSetting(string setting, string value)
-        {
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertSetting = new Dictionary<string, string>();
-            insertSetting.Add("setting", setting);
-            insertSetting.Add("value", value);
+            insertSetting.Add("setting", dataToAdd[0]);
+            insertSetting.Add("value", dataToAdd[1]);
 
             //execute sql insert command with the dictionary
             database.Insert("master", insertSetting);
@@ -436,9 +434,9 @@ namespace network_drive_utility
             #endregion
 
             //set default settings
-            AddNewSetting("dateCreated", DateTime.Now.ToString());
-            AddNewSetting("dataDir", folderPath);
-            AddNewSetting("logging", "true");
+            AddSetting("dateCreated", DateTime.Now.ToString());
+            AddSetting("dataDir", folderPath);
+            AddSetting("logging", "true");
 
             //close connection
             dbConnection.Close();
@@ -509,7 +507,9 @@ namespace network_drive_utility
                 {
                     ErrorLogger.Write(e.ToString());
                 }
-                Transactlogger.Write("Returned " + dt.Rows.Count + " Row(s)");
+
+                if (dt.Rows.Count > 1)
+                    Transactlogger.Write("Returned " + dt.Rows.Count + " Row(s)");
                 return dt;
             }
 

@@ -24,27 +24,10 @@ namespace network_drive_utility
         /// <param name="args">Program arguments</param>
         public static void Main(string[] args)
         {
-            bool appConfigExists = true;    //if app.Config exists or not: default true
             try
             {
-                if (Utilities.ReadAppConfigKey("dataDir") == "")
-                {
-                    appConfigExists = false;
-                }
-
-                #region** 1 Initialize Program
                 //** 1.1 Write Log Header
                 Output(logger.header(), true);
-
-                //** 1.2 Parse Program Parameters
-                if (args.Length != 0)
-                {
-                    foreach (string arg in args)
-                    {
-                        Output("Running with arg: " + arg);
-                        logsEnabled = (arg == "logging" ? true : false);
-                    }
-                }
 
                 //** 1.3 Verify Program Compatability
                 if (!Utilities.HasNet35())
@@ -54,51 +37,44 @@ namespace network_drive_utility
                 else
                 {
                     #region program init
-                    //Initialize Program Variables
 
-                    //Set Data Path
-                    string dataPath = "";
-                    if (appConfigExists)
-                        dataPath = Utilities.ReadAppConfigKey("dataDir");
+                    //Get DataDir from App Config
+                    string dataPath = Utilities.ReadAppConfigKey("dataDir");
 
-                    //Database
+                    //Init Database
                     db = new DBOperator(dataPath);
 
-                    //Lists
-                    List<NetworkConnection> mapDrives;          // Currently Mapped Drives
-                    List<string> dnshosts = new List<string>(); // List to store all hosts to DNSlookup
-                    List<string> DNSDomains = new List<string>();  // List of all domains of each host
+                    //Get DataDir from Database, we will use this from now on.
+                    string dbDataPath = db.GetSetting("dataDir");
+                    if (dbDataPath != "")
+                        if (dataPath == "")
+                            dataPath = dbDataPath;
+
+                    //Initialize global logger
+                    globalLog.logPath = dataPath;
+
+                    //GATHER SETTINGS FROM SQL
+                    logsEnabled = Utilities.parseBool(db.GetSetting("logging"));
+
+                    //Get List of Network Connections from WMI
+                    List<NetworkConnection> mapDrives = GetMappedDrives(); 
 
                     //SQL Information (to prevent querying multiple times
                     string[] currentUser;
                     string[] currentComputer;
 
-                    //GATHER SETTINGS FROM SQL
-                    logsEnabled = Utilities.parseBool(db.GetSetting("logging"));
-
-                    //Set the Global Log Path to what is in SQL
-                    string globalLogPath = db.GetSetting("dataDir");
-                    if (globalLogPath != "")
-                        globalLog.logPath = globalLogPath;
-                    else
-                        globalLog.logPath = dataPath;
-
                     #endregion
-                #endregion
 
                     if (Utilities.ReadAppConfigKey("XMLdir") != "")
                         // Convert deprecated xml files to sql
                         XML_to_SQL(db);
-                    
-                    // Get List of Network Connections from WMI
-                    mapDrives = GetMappedDrives();
 
                     //Insert session information into sqlDB
                     currentUser = db.AddAndGetRow("users", "username", Environment.UserName, Environment.UserName);
                     currentComputer = db.AddAndGetRow("computers", "hostname", Environment.MachineName, Environment.MachineName);
 
                     //Add mappings to database
-                    //This method will unmap fileshares that are blacklisted
+                    //This method will also unmap fileshares that are blacklisted
                     AddMappingListToSQL(db, currentUser[0], currentComputer[0], mapDrives);
                 }
                 Output("Program Exited Successfully." + Environment.NewLine);
@@ -114,18 +90,17 @@ namespace network_drive_utility
         /// <summary>Generates list of currently mapped drives
         /// </summary>
         /// <remarks>This is used to simplify the main program and to handle exceptions thrown</remarks>
-        /// <returns>List of NetworkConnections with all currently mapped drives.</NetworkConnection></returns>
+        /// <returns>List of NetworkConnections with all currently mapped drives.</returns>
         private static List<NetworkConnection> GetMappedDrives()
         {
             List<NetworkConnection> mappedDrives;
 
-            try
-            {
-                mappedDrives = NetworkConnection.ListCurrentlyMappedDrives();
+            try { 
+                mappedDrives = NetworkConnection.ListCurrentlyMappedDrives(); 
             }
-            catch (Exception e)
+            catch (Exception crap)
             {
-                Output(e.ToString());
+                Output(crap.ToString());
                 mappedDrives = new List<NetworkConnection>();
             }
 
@@ -140,9 +115,7 @@ namespace network_drive_utility
         private static void ShareListToSQL(DBOperator db, List<NetworkConnection> drives, bool active)
         {
             foreach (NetworkConnection netCon in drives)
-            {
                 AddShare(db, netCon, active);
-            }
         }
 
         /// <summary>Add Share to SQL Database - Will not add duplicate shares
@@ -152,12 +125,12 @@ namespace network_drive_utility
         /// <param name="active">whether the fileshare is active or inactive</param>
         private static void AddShare(DBOperator db, NetworkConnection NetCon, bool active)
         {
-            string[] currentServer = db.AddAndGetServerNoDuplicate(NetCon.getServerName(), NetCon.Domain);
+            string[] currentServer = db.AddAndGetServer(NetCon.getServerName(), NetCon.Domain);
 
             if (NetCon.getShareName() != "*")
             {
                 //share is not only a wildcard
-                db.AddAndGetShareNoDuplicate(currentServer[0], active, NetCon.getShareName());
+                db.AddAndGetShare(currentServer[0], active, NetCon.getShareName());
             }
         }
 
@@ -237,7 +210,7 @@ namespace network_drive_utility
                         //DNS resolves: add server to SQL
                         string notice = string.Format("{0,20}: {1}.{2}", "Found New Server", netCon.getServerName(), netCon.Domain);
                         Notice(notice, true);
-                        server = db.AddAndGetServerNoDuplicate(netCon.getServerName(), netCon.Domain);
+                        server = db.AddAndGetServer(netCon.getServerName(), netCon.Domain);
                     }
                     else
                     {
