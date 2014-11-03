@@ -131,6 +131,14 @@ namespace network_drive_utility
 
         #region Miscellaneous
 
+        internal static bool IsValidFilepath(string testName)
+        {
+            Regex containsABadCharacter = new Regex("[" + Regex.Escape(System.IO.Path.GetInvalidPathChars().ToString()) + "]");
+            if (containsABadCharacter.IsMatch(testName)) { return false; };
+
+            return true;
+        }
+
         /// <summary>Reads an entire file.
         /// </summary>
         /// <param name="fullPath">Full UNC Path of the file</param>
