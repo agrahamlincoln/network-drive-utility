@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml.Serialization;
-using GrahamUtils;
+using cSharpUtils;
 
 namespace network_drive_utility
 {
@@ -28,6 +28,7 @@ namespace network_drive_utility
             try
             {
                 //** 1.1 Write Log Header
+                Output("Running: " + typeof(Program).Assembly.FullName, true);
                 Output(logger.header(), true);
                 bool compatible = false; // .NET compatability
 

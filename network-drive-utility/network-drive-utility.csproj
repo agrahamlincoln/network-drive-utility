@@ -69,8 +69,8 @@
     <ApplicationIcon>shell32_10.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="GrahamUtils">
-      <HintPath>.\GrahamUtils.dll</HintPath>
+    <Reference Include="cSharpUtils">
+      <HintPath>.\cSharpUtils.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />

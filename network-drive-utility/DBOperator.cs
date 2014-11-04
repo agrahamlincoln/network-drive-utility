@@ -5,7 +5,7 @@ using System.Data.SQLite;
 using System.IO;
 using System.Linq;
 using System.Text;
-using GrahamUtils;
+using cSharpUtils;
 
 namespace network_drive_utility
 {
@@ -23,7 +23,7 @@ namespace network_drive_utility
         /// <param name="folderPath">the folder in which the database exists in</param>
         public DBOperator(string folderPath)
         {
-            string fullPath = "\\" + folderPath + "\\network-drive-utility.s3db";
+            string fullPath = "\\" + folderPath + "\\data.s3db";
             database = new SQLiteDatabase(fullPath);
             if (!File.Exists(fullPath))
             {
