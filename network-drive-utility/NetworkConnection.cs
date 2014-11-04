@@ -1,4 +1,5 @@
-﻿using System;
+﻿using GrahamUtils;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Management;
@@ -183,7 +184,7 @@ namespace network_drive_utility
         {
             string share;
 
-            share = Utilities.getToken(this.RemoteName, 3, '\\');
+            share = StringUtils.getToken(this.RemoteName, 3, '\\');
 
             return share;
         }
@@ -195,7 +196,7 @@ namespace network_drive_utility
         {
             string server;
 
-            server = Utilities.getToken(this.RemoteName, 2, '\\');
+            server = StringUtils.getToken(this.RemoteName, 2, '\\');
 
             return server.ToUpper();
         }

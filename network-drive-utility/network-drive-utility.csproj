@@ -69,6 +69,9 @@
     <ApplicationIcon>shell32_10.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="GrahamUtils">
+      <HintPath>.\GrahamUtils.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
@@ -85,7 +88,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DBOperator.cs" />
-    <Compile Include="LogWriter.cs" />
     <Compile Include="Statistics.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="NetworkConnection.cs" />

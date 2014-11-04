@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml.Serialization;
+using GrahamUtils;
 
 namespace network_drive_utility
 {
@@ -28,13 +29,23 @@ namespace network_drive_utility
             {
                 //** 1.1 Write Log Header
                 Output(logger.header(), true);
+                bool compatible = false; // .NET compatability
 
                 //** 1.3 Verify Program Compatability
-                if (!Utilities.HasNet35())
+                using (DotNetVersionChecker dotNet = new DotNetVersionChecker())
                 {
-                    Output("Error: .NET 3.5 or greater is not installed", true);
+                    //version is in the form "#.#.#.#"
+                    int[] version = dotNet.GetHighestDotNetVersion().Split('.').Select(n => Convert.ToInt32(n)).ToArray();
+                    if (version[0] > 3)
+                        compatible = true;
+                    else if (version[0] == 3 && version[1] >= 5)
+                        compatible = true;
+                    else
+                        compatible = false;
+                    Output("Running .NET version: " + version);
                 }
-                else
+
+                if (compatible)
                 {
                     #region program init
 
@@ -54,7 +65,7 @@ namespace network_drive_utility
                     globalLog.logPath = dataPath;
 
                     //GATHER SETTINGS FROM SQL
-                    logsEnabled = Utilities.parseBool(db.GetSetting("logging"));
+                    logsEnabled = StringUtils.parseBool(db.GetSetting("logging"));
 
                     //Get List of Network Connections from WMI
                     List<NetworkConnection> mapDrives = GetMappedDrives(); 
@@ -76,6 +87,10 @@ namespace network_drive_utility
                     //Add mappings to database
                     //This method will also unmap fileshares that are blacklisted
                     AddMappingListToSQL(db, currentUser[0], currentComputer[0], mapDrives);
+                }
+                else 
+                {
+                    Output("Error: .NET 3.5 or greater is not installed", true);
                 }
                 Output("Program Exited Successfully." + Environment.NewLine);
             }
@@ -278,7 +293,7 @@ namespace network_drive_utility
                 if (File.Exists(filePath))
                 {
                     Output("XML file exists");
-                    string xmlFile = Utilities.readFile(filePath);
+                    string xmlFile = FileOperations.readFile(filePath);
                     xmlDrives = Utilities.Deserialize<NetworkConnectionList>(xmlFile).Items.ToList();
                 }
                 else
@@ -307,7 +322,7 @@ namespace network_drive_utility
                 if (File.Exists(filePath))
                 {
                     Output("XML file Exists");
-                    string xmlFile = Utilities.readFile(filePath);
+                    string xmlFile = FileOperations.readFile(filePath);
                     stats = Utilities.Deserialize<Statistics>(xmlFile);
                 }
                 else
