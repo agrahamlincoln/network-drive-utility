@@ -211,6 +211,7 @@ namespace network_drive_utility
         {
             string[] server; //server row from Table: Servers
             string[] share; //share row from Table: Shares
+            List<string[]> savedMappings = db.GetUserMappings(userID); //all rows for this user in mappings
             DateTime dateNow = DateTime.Now;
 
             foreach (NetworkConnection netCon in drives)
@@ -265,16 +266,21 @@ namespace network_drive_utility
                 }
                 else //Add the mapping to the DB
                 {
-                    //construct the dictionary to check if the mapping exists
-                    Dictionary<string, string> mappingExistsCheck = new Dictionary<string, string>();
-                    mappingExistsCheck.Add("shareID", share[0]);
-                    mappingExistsCheck.Add("computerID", computerID);
-                    mappingExistsCheck.Add("userID", userID);
+                    //Verify if the user already has it mapped or not.
+                    string[] row = savedMappings.Find(x => x[0].Contains(share[0]));
 
-                    //construct a string array with the new row
-                    string[] mappingsRow = new string[6] { share[0], computerID, userID, netCon.LocalName, netCon.UserName, dateNow.ToString() };
+                    if (row.Length > 0)
+                    {
+                        //share exists
+                        Output("Map Exists");
+                    }
+                    else
+                    {
+                        //construct a string array with the new row
+                        string[] mappingsRow = new string[6] { share[0], computerID, userID, netCon.LocalName, netCon.UserName, dateNow.ToString() };
 
-                    db.AddRow("mappings", mappingExistsCheck, mappingsRow);
+                        db.AddNewRow("mappings", mappingsRow);
+                    }
                 }
             }
         }

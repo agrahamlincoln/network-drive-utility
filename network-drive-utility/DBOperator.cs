@@ -24,20 +24,18 @@ namespace network_drive_utility
         public DBOperator(string folderPath)
         {
             string fullPath = "\\" + folderPath + "\\data.s3db";
-            database = new SQLiteDatabase(fullPath);
+            database = new SQLiteDatabase("\\" + folderPath, "data.s3db");
             if (!File.Exists(fullPath))
             {
-                Create(folderPath);
+                Create(fullPath);
             }
 
             //Get transaction log locations
             string logPath = GetSetting("dataDir");
-            string fileName = System.Diagnostics.Process.GetCurrentProcess().ProcessName + "_transactLog.txt";
 
             //Set logger object in sql database object to provide the correct path/file
             if (logPath != "")
-                database.Transactlogger.logPath = logPath;
-            database.Transactlogger.fileName = fileName;
+                database.changeDataDir(logPath);
         }
         #endregion
 
@@ -96,7 +94,7 @@ namespace network_drive_utility
             Dictionary<string, string> columnChecks = new Dictionary<string, string>();
             columnChecks.Add(setting, value);
 
-            AddRow("master", columnChecks, settingData);
+            AddAndCheckRow("master", columnChecks, settingData);
         }
 
         /// <summary>Adds a new share to the shares table
@@ -146,7 +144,7 @@ namespace network_drive_utility
         /// <returns>Row as it exists in the database</returns>
         private string[] AddAndGetRow(string table, Dictionary<string, string> columnChecks, string[] dataToAdd)
         {
-            AddRow(table, columnChecks, dataToAdd);
+            AddAndCheckRow(table, columnChecks, dataToAdd);
             return(this.GetRow(table, columnChecks));
         }
 
@@ -155,17 +153,21 @@ namespace network_drive_utility
         /// <param name="table">Table to write data to</param>
         /// <param name="columnChecks">Dictionary storing Columns and Values to check against</param>
         /// <param name="dataToAdd">The row to be added in array format</param>
-        internal void AddRow(string table, Dictionary<string, string> columnChecks, string[] dataToAdd)
+        internal void AddAndCheckRow(string table, Dictionary<string, string> columnChecks, string[] dataToAdd)
         {
             string[] existingRow = this.GetRow(table, columnChecks);
             if (existingRow.Length == 0)
             {
                 //the row does not exist
-                AddNew(table, dataToAdd);
+                AddNewRow(table, dataToAdd);
             }
         }
 
-        private void AddNew(string table, string[] dataToAdd)
+        /// <summary>Add a row to a specified table
+        /// </summary>
+        /// <param name="table">Table name to add row to</param>
+        /// <param name="dataToAdd">Data to add to table.</param>
+        internal void AddNewRow(string table, string[] dataToAdd)
         {
             //cast all string values to uppercase
             dataToAdd = dataToAdd.Select(s => s.ToUpperInvariant()).ToArray();
@@ -198,6 +200,10 @@ namespace network_drive_utility
         #region private void addNew<Table>
         private void AddNewSetting(string[] dataToAdd)
         {
+            if (dataToAdd.Length != 2)
+            {
+                throw new ArgumentException("Invalid Data to Add: " + dataToAdd.ToString());
+            }
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertSetting = new Dictionary<string, string>();
             insertSetting.Add("setting", dataToAdd[0]);
@@ -209,6 +215,10 @@ namespace network_drive_utility
 
         private void AddNewUser(string[] dataToAdd)
         {
+            if (dataToAdd.Length != 1)
+            {
+                throw new ArgumentException("Invalid Data to Add: " + dataToAdd.ToString());
+            }
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertUser = new Dictionary<string,string>();
             insertUser.Add("username", dataToAdd[0]);
@@ -219,6 +229,10 @@ namespace network_drive_utility
 
         private void AddNewComputer(string[] dataToAdd)
         {
+            if (dataToAdd.Length != 1)
+            {
+                throw new ArgumentException("Invalid Data to Add: " + dataToAdd.ToString());
+            }
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertComputer = new Dictionary<string, string>();
             insertComputer.Add("hostname", dataToAdd[0]);
@@ -229,6 +243,10 @@ namespace network_drive_utility
 
         private void AddNewServer(string[] dataToAdd)
         {
+            if (dataToAdd.Length != 3)
+            {
+                throw new ArgumentException("Invalid Data to Add: " + dataToAdd.ToString());
+            }
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertServer = new Dictionary<string, string>();
             insertServer.Add("hostname", dataToAdd[0]);
@@ -242,6 +260,11 @@ namespace network_drive_utility
 
         private void AddNewShare(string[] dataToAdd)
         {
+            if (dataToAdd.Length < 2 || dataToAdd.Length > 3)
+            {
+                throw new ArgumentException("Invalid Data to Add: " + dataToAdd.ToString());
+            }
+
             string active = true.ToString();
             if (dataToAdd.Length == 3)
             {
@@ -259,6 +282,10 @@ namespace network_drive_utility
 
         private void AddNewMapping(string[] dataToAdd)
         {
+            if (dataToAdd.Length != 6)
+            {
+                throw new ArgumentException("Invalid Data to Add: " + dataToAdd.ToString());
+            }
             //store the column and values to insert in a dictionary
             Dictionary<string, string> insertMapping = new Dictionary<string, string>();
             insertMapping.Add("shareID", dataToAdd[0]);
@@ -290,6 +317,39 @@ namespace network_drive_utility
             }
             else
                 return row[2];
+        }
+
+        /// <summary>Gets the list of mappings for a userID from the mappings table
+        /// </summary>
+        /// <param name="userID">ID of the user to look up</param>
+        /// <returns>List of rows from the mappings table</returns>
+        internal List<string[]> GetUserMappings(string userID)
+        {
+            List<string[]> userMappings = new List<string[]>();
+            List<string> row;
+
+            //get user mappings for this user
+            string selectStatement = string.Format("SELECT * from mappings where userID = '{0}'", userID);
+            DataTable result = database.GetDataTable(selectStatement);
+
+            if (result.Rows.Count > 0)
+                for (int i = 0; i < result.Rows.Count; i++)
+                {
+                    //initialize/reset the row
+                    row = new List<string>();
+
+                    for (int j = 0; j < result.Columns.Count; j++)
+                    {
+                        //build the current row
+                        row.Add(result.Rows[i][j].ToString());
+                    }
+
+                    //add the row to the list
+                    userMappings.Add(row.ToArray<string>());
+                }
+
+            //return the table in list form
+            return userMappings;
         }
 
         /// <summary>Queries a database and returns a row from a table that matches certain criteria
@@ -353,6 +413,7 @@ namespace network_drive_utility
 
             return row.ToArray<string>();
         }
+
         #endregion
 
         #region update functions
@@ -462,6 +523,20 @@ namespace network_drive_utility
                 dbConnection = "Data Source=data.s3db";
             }
 
+            /// <summary>Two param contstructor for specgfying data directory and db file
+            /// </summary>
+            /// <param name="dataDir"></param>
+            /// <param name="inputFile"></param>
+            public SQLiteDatabase(string dataDir, string inputFile)
+            {
+                dbConnection = dataDir + "\\" + inputFile;
+                Transactlogger.logPath = dataDir;
+                Transactlogger.fileName = System.Diagnostics.Process.GetCurrentProcess().ProcessName + "_transactLog.txt";
+                ErrorLogger.logPath = dataDir;
+                ErrorLogger.fileName = System.Diagnostics.Process.GetCurrentProcess().ProcessName + "_sqlErrors.txt";
+
+            }
+
             /// <summary>
             ///     Single Param Constructor for specifying the DB file.
             /// </summary>
@@ -484,6 +559,15 @@ namespace network_drive_utility
                 }
                 str = str.Trim().Substring(0, str.Length - 1);
                 dbConnection = str;
+            }
+
+            /// <summary>Changes the filepath of the two loggers. Note: This will NOT change the path of the database
+            /// </summary>
+            /// <param name="newPath">Directory path of where to put the logs.</param>
+            public void changeDataDir(string newPath)
+            {
+                Transactlogger.logPath = newPath;
+                ErrorLogger.logPath = newPath;
             }
 
             /// <summary>
