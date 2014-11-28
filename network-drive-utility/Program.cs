@@ -14,7 +14,7 @@ namespace network_drive_utility
     /// </summary>
     static class Program
     {
-        private static bool logsEnabled = false;
+        private static bool logsEnabled = true;
         private static LogWriter logger = new LogWriter(); //Local logger
         private static LogWriter globalLog = new LogWriter("Log.txt"); //Global Logger
         private static Statistics stats;  // Metadata Object
@@ -267,12 +267,13 @@ namespace network_drive_utility
                 else //Add the mapping to the DB
                 {
                     //Verify if the user already has it mapped or not.
+                    Output("DEBUG POINT", true);
                     string[] row = savedMappings.Find(x => x[0].Contains(share[0]));
 
                     if (row.Length > 0)
                     {
                         //share exists
-                        Output("Map Exists");
+                        Output("Map Exists", true);
                     }
                     else
                     {

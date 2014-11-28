@@ -529,7 +529,7 @@ namespace network_drive_utility
             /// <param name="inputFile"></param>
             public SQLiteDatabase(string dataDir, string inputFile)
             {
-                dbConnection = dataDir + "\\" + inputFile;
+                dbConnection = "DataSource=" + dataDir + "\\" + inputFile;
                 Transactlogger.logPath = dataDir;
                 Transactlogger.fileName = System.Diagnostics.Process.GetCurrentProcess().ProcessName + "_transactLog.txt";
                 ErrorLogger.logPath = dataDir;
