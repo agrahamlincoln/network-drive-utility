@@ -128,9 +128,9 @@ namespace network_drive_utility
 
         internal override void updateDataForDB()
         {
-            base.dataForDB = new Dictionary<string, string>();
-            base.dataForDB.Add("setting", setting);
-            base.dataForDB.Add("value", value);
+            dataForDB = new Dictionary<string, string>();
+            dataForDB.Add("setting", setting);
+            dataForDB.Add("value", value);
         }
 
         internal override void updateID()
@@ -256,7 +256,7 @@ namespace network_drive_utility
             construct();
 
             if (exists)
-                this.active = Boolean.Parse(getFromDB()[2]);
+                this.active = Utilities.parseBool(getFromDB()[2]);
             else
                 this.active = true;
         }
@@ -335,7 +335,7 @@ namespace network_drive_utility
             construct();
 
             if (exists)
-                this.active = Boolean.Parse(getFromDB()[3]);
+                this.active = Utilities.parseBool(getFromDB()[3]);
             else
                 this.active = true;
         }

@@ -290,7 +290,7 @@ namespace network_drive_utility
 
             try
             {
-                parsed = Boolean.Parse(str);
+                parsed = Convert.ToBoolean(str);
             }
             catch (ArgumentException)
             {
@@ -301,6 +301,20 @@ namespace network_drive_utility
             {
                 //string is invalid
                 parsed = false;
+            }
+
+            //if still false, try parsing the string into a num and then parsing it to bool.
+            if (!parsed)
+            {
+                try
+                {
+                    var num = Convert.ToInt32(str);
+                    parsed = Convert.ToBoolean(num);
+                }
+                catch
+                {
+                    parsed = false;
+                }
             }
 
             return parsed;
