@@ -5,37 +5,38 @@ using System.Data.SQLite;
 using System.IO;
 using System.Linq;
 using System.Text;
-using cSharpUtils;
 
 namespace network_drive_utility
 {
-    sealed class DBOperator
+    internal class DBOperator
     {
-        private SQLiteDatabase database;
+        internal SQLiteDatabase database;
         #region constructors
 
         /// <summary>No-Arg constructor
         /// </summary>
-        public DBOperator() : this("") {}
+        public DBOperator() : this("") { }
 
         /// <summary>folderPath constructor
         /// </summary>
         /// <param name="folderPath">the folder in which the database exists in</param>
         public DBOperator(string folderPath)
         {
-            string fullPath = "\\" + folderPath + "\\data.s3db";
-            database = new SQLiteDatabase("\\" + folderPath, "data.s3db");
+            string fullPath = "\\" + folderPath + "\\network-drive-utility.s3db";
+            database = new SQLiteDatabase(fullPath);
             if (!File.Exists(fullPath))
             {
-                Create(fullPath);
+                Create(folderPath);
             }
 
             //Get transaction log locations
             string logPath = GetSetting("dataDir");
+            string fileName = System.Diagnostics.Process.GetCurrentProcess().ProcessName + "_transactLog.txt";
 
             //Set logger object in sql database object to provide the correct path/file
             if (logPath != "")
-                database.changeDataDir(logPath);
+                database.Transactlogger.logPath = logPath;
+            database.Transactlogger.fileName = fileName;
         }
         #endregion
 
@@ -65,244 +66,25 @@ namespace network_drive_utility
             return isDBNew;
         }
 
-        #region insert functions
-
-        /// <summary>Adds a new server to the servers table, will not add a duplicate
+        /// <summary>
+        /// Constructs the WHERE part of a SQL statement from a dictionary of column checks
         /// </summary>
-        /// <param name="serverName">Hostname of server to add</param>
-        /// <param name="serverDomain">Domain of server to add</param>
-        /// <returns>Row result of selecting the server</returns>
-        internal string[] AddAndGetServer(string serverName, string serverDomain)
+        /// <param name="columnChecks">Dictionary of columnnames and what to check for</param>
+        /// <returns>A SQL-formatted string for the WHERE part of a SQL statement</returns>
+        internal string buildWhereClause(Dictionary<string, string> columnChecks)
         {
-            DateTime dateNow = DateTime.Now;
-            string[] serverData = new string[3] { serverName, serverDomain, dateNow.ToString() };
-            serverData = serverData.Select(s => s.ToUpperInvariant()).ToArray();
+            List<string> columnList = new List<string>();
 
-            Dictionary<string, string> columnChecks = new Dictionary<string, string>();
-            columnChecks.Add("hostname", serverData[0]);
-
-            return(AddAndGetRow("servers", columnChecks, serverData));
-        }
-
-        /// <summary>Add a new 'setting' to the Master table, will not add a duplicate
-        /// </summary>
-        /// <param name="setting">Name of the setting to change</param>
-        /// <param name="value">Value of the setting</param>
-        internal void AddSetting(string setting, string value)
-        {
-            string[] settingData = { setting, value };
-            Dictionary<string, string> columnChecks = new Dictionary<string, string>();
-            columnChecks.Add(setting, value);
-
-            AddAndCheckRow("master", columnChecks, settingData);
-        }
-
-        /// <summary>Adds a new share to the shares table
-        /// </summary>
-        /// <param name="serverID">ID number of the server the share resides on</param>
-        /// <param name="active">Whether the share is active or not</param>
-        /// <param name="shareName">Shared name of the shared drive</param>
-        /// <returns>Row result of selecting the share</returns>
-        internal string[] AddAndGetShare(string serverID, bool active, string shareName)
-        {
-            string[] netConShareData = new string[3] { serverID, shareName, active.ToString() };
-            netConShareData = netConShareData.Select(s => s.ToUpperInvariant()).ToArray();
-            Dictionary<string, string> columnChecks = new Dictionary<string, string>();
-            columnChecks.Add("serverID", netConShareData[0]);
-            columnChecks.Add("shareName", netConShareData[1]);
-
-            return (AddAndGetRow("shares", columnChecks, netConShareData));
-        }
-
-        /// <summary>Function that validates data existence before adding a duplicate row using a single column check and a single column data value
-        /// </summary>
-        /// <remarks>This does not guarantee duplicates, it is up to the programmer to check enough columns</remarks>
-        /// <param name="table">Table to write data to</param>
-        /// <param name="checkColumn">Column to check against</param>
-        /// <param name="dataCheck">Value to check against column</param>
-        /// <param name="dataToAdd">The row to be added in array format</param>
-        /// <returns>Array value of the row as it exists in the database</returns>
-        internal string[] AddAndGetRow(string table, string checkColumn, string dataCheck, string dataToAdd)
-        {
-            //construct the dictionary
-            Dictionary<string, string> columnChecks = new Dictionary<string, string>();
-            columnChecks.Add(checkColumn, dataCheck.ToUpperInvariant());
-
-            //create single-element array
-            string[] _dataToAdd = { dataToAdd.ToUpperInvariant() };
-
-            //add the row
-            return (AddAndGetRow(table, columnChecks, _dataToAdd));
-        }
-
-        /// <summary>Function that validates data existence before adding a duplicate row
-        /// </summary>
-        /// <remarks>This does not guarantee duplicates, it is up to the programmer to check enough columns</remarks>
-        /// <param name="table">Table to write data to</param>
-        /// <param name="columnChecks">Column to check against</param>
-        /// <param name="dataToAdd">The row to be added in Array Format</param>
-        /// <returns>Row as it exists in the database</returns>
-        private string[] AddAndGetRow(string table, Dictionary<string, string> columnChecks, string[] dataToAdd)
-        {
-            AddAndCheckRow(table, columnChecks, dataToAdd);
-            return(this.GetRow(table, columnChecks));
-        }
-
-        /// <summary>Function that validates data existence before adding a duplicate row
-        /// </summary>
-        /// <param name="table">Table to write data to</param>
-        /// <param name="columnChecks">Dictionary storing Columns and Values to check against</param>
-        /// <param name="dataToAdd">The row to be added in array format</param>
-        internal void AddAndCheckRow(string table, Dictionary<string, string> columnChecks, string[] dataToAdd)
-        {
-            string[] existingRow = this.GetRow(table, columnChecks);
-            if (existingRow.Length == 0)
+            //Build Where Clause
+            foreach (KeyValuePair<String, String> row in columnChecks)
             {
-                //the row does not exist
-                AddNewRow(table, dataToAdd);
-            }
-        }
-
-        /// <summary>Add a row to a specified table
-        /// </summary>
-        /// <param name="table">Table name to add row to</param>
-        /// <param name="dataToAdd">Data to add to table.</param>
-        internal void AddNewRow(string table, string[] dataToAdd)
-        {
-            //cast all string values to uppercase
-            dataToAdd = dataToAdd.Select(s => s.ToUpperInvariant()).ToArray();
-            switch (table)
-            {
-                case "users":
-                    AddNewUser(dataToAdd);
-                    break;
-                case "master":
-                    AddNewSetting(dataToAdd);
-                    break;
-                case "computers":
-                    AddNewComputer(dataToAdd);
-                    break;
-                case "shares":
-                    AddNewShare(dataToAdd);
-                    break;
-                case "servers":
-                    AddNewServer(dataToAdd);
-                    break;
-                case "mappings":
-                    AddNewMapping(dataToAdd);
-                    break;
-                default:
-                    //table not known, don't add
-                    break;
-            }
-        }
-
-        #region private void addNew<Table>
-        private void AddNewSetting(string[] dataToAdd)
-        {
-            if (dataToAdd.Length != 2)
-            {
-                throw new ArgumentException("Invalid Data to Add: " + dataToAdd.ToString());
-            }
-            //store the column and values to insert in a dictionary
-            Dictionary<string, string> insertSetting = new Dictionary<string, string>();
-            insertSetting.Add("setting", dataToAdd[0]);
-            insertSetting.Add("value", dataToAdd[1]);
-
-            //execute sql insert command with the dictionary
-            database.Insert("master", insertSetting);
-        }
-
-        private void AddNewUser(string[] dataToAdd)
-        {
-            if (dataToAdd.Length != 1)
-            {
-                throw new ArgumentException("Invalid Data to Add: " + dataToAdd.ToString());
-            }
-            //store the column and values to insert in a dictionary
-            Dictionary<string, string> insertUser = new Dictionary<string,string>();
-            insertUser.Add("username", dataToAdd[0]);
-
-            //execute sql insert command with the dictionary
-            database.Insert("users", insertUser);
-        }
-
-        private void AddNewComputer(string[] dataToAdd)
-        {
-            if (dataToAdd.Length != 1)
-            {
-                throw new ArgumentException("Invalid Data to Add: " + dataToAdd.ToString());
-            }
-            //store the column and values to insert in a dictionary
-            Dictionary<string, string> insertComputer = new Dictionary<string, string>();
-            insertComputer.Add("hostname", dataToAdd[0]);
-
-            //execute sql insert command with the dictionary
-            database.Insert("computers", insertComputer);
-        }
-
-        private void AddNewServer(string[] dataToAdd)
-        {
-            if (dataToAdd.Length != 3)
-            {
-                throw new ArgumentException("Invalid Data to Add: " + dataToAdd.ToString());
-            }
-            //store the column and values to insert in a dictionary
-            Dictionary<string, string> insertServer = new Dictionary<string, string>();
-            insertServer.Add("hostname", dataToAdd[0]);
-            insertServer.Add("active", "true");
-            insertServer.Add("domain", dataToAdd[1]);
-            insertServer.Add("date", dataToAdd[2]);
-
-            //execute sql insert command with the dictionary
-            database.Insert("servers", insertServer);
-        }
-
-        private void AddNewShare(string[] dataToAdd)
-        {
-            if (dataToAdd.Length < 2 || dataToAdd.Length > 3)
-            {
-                throw new ArgumentException("Invalid Data to Add: " + dataToAdd.ToString());
+                columnList.Add(string.Format("{0} == '{1}'", row.Key, row.Value));
             }
 
-            string active = true.ToString();
-            if (dataToAdd.Length == 3)
-            {
-                active = dataToAdd[2];
-            }
-            //store the column and values to insert in a dictionary
-            Dictionary<string, string> insertShare = new Dictionary<string, string>();
-            insertShare.Add("serverID", dataToAdd[0]);
-            insertShare.Add("shareName", dataToAdd[1]);
-            insertShare.Add("active", active);
-
-            //execute sql insert command with the dictionary
-            database.Insert("shares", insertShare);
+            return string.Join(" AND ", columnList.ToArray());
         }
 
-        private void AddNewMapping(string[] dataToAdd)
-        {
-            if (dataToAdd.Length != 6)
-            {
-                throw new ArgumentException("Invalid Data to Add: " + dataToAdd.ToString());
-            }
-            //store the column and values to insert in a dictionary
-            Dictionary<string, string> insertMapping = new Dictionary<string, string>();
-            insertMapping.Add("shareID", dataToAdd[0]);
-            insertMapping.Add("computerID", dataToAdd[1]);
-            insertMapping.Add("userID", dataToAdd[2]);
-            insertMapping.Add("letter", dataToAdd[3]);
-            insertMapping.Add("username", dataToAdd[4]);
-            insertMapping.Add("date", dataToAdd[5]);
-
-            //execute sql insert command with the dictionary
-            database.Insert("mappings", insertMapping);
-        }
-        #endregion
-
-        #endregion
-
-        #region query functions
+        #region GET functions
 
         /// <summary>Gets the setting from the master table
         /// </summary>
@@ -317,39 +99,6 @@ namespace network_drive_utility
             }
             else
                 return row[2];
-        }
-
-        /// <summary>Gets the list of mappings for a userID from the mappings table
-        /// </summary>
-        /// <param name="userID">ID of the user to look up</param>
-        /// <returns>List of rows from the mappings table</returns>
-        internal List<string[]> GetUserMappings(string userID)
-        {
-            List<string[]> userMappings = new List<string[]>();
-            List<string> row;
-
-            //get user mappings for this user
-            string selectStatement = string.Format("SELECT * from mappings where userID = '{0}'", userID);
-            DataTable result = database.GetDataTable(selectStatement);
-
-            if (result.Rows.Count > 0)
-                for (int i = 0; i < result.Rows.Count; i++)
-                {
-                    //initialize/reset the row
-                    row = new List<string>();
-
-                    for (int j = 0; j < result.Columns.Count; j++)
-                    {
-                        //build the current row
-                        row.Add(result.Rows[i][j].ToString());
-                    }
-
-                    //add the row to the list
-                    userMappings.Add(row.ToArray<string>());
-                }
-
-            //return the table in list form
-            return userMappings;
         }
 
         /// <summary>Queries a database and returns a row from a table that matches certain criteria
@@ -372,21 +121,13 @@ namespace network_drive_utility
         /// <param name="tableName">Table to query</param>
         /// <param name="columnChecks">Column and Values to check against</param>
         /// <returns>First row returned from query</returns>
-        internal string[] GetRow(string tableName, Dictionary<string,string> columnChecks)
+        internal string[] GetRow(string tableName, Dictionary<string, string> columnChecks)
         {
-            List<string> columnList = new List<string>(); //used to store dictionary
-
             //first part of select statement
             string selectStatement = string.Format("SELECT * from {0} where ", tableName);
 
-            //Iterate through dictionary and build list
-            foreach (KeyValuePair<String, String> row in columnChecks)
-            {
-                columnList.Add(string.Format("{0} == '{1}'", row.Key, row.Value));
-            }
-
             //Append the where criteria to the select statement
-            selectStatement += string.Join(" AND ", columnList.ToArray());
+            selectStatement += buildWhereClause(columnChecks);
 
             //Perform Query
             return GetRow(selectStatement);
@@ -413,10 +154,7 @@ namespace network_drive_utility
 
             return row.ToArray<string>();
         }
-
         #endregion
-
-        #region update functions
 
         /// <summary>Basic Update Executer, executes an update sql command
         /// </summary>
@@ -428,7 +166,6 @@ namespace network_drive_utility
         {
             database.Update(table, setOperations, whereClause);
         }
-        #endregion
 
         //create new database
         private void Create(string folderPath)
@@ -500,16 +237,24 @@ namespace network_drive_utility
             #endregion
 
             //set default settings
-            AddSetting("dateCreated", DateTime.Now.ToString());
-            AddSetting("dataDir", folderPath);
-            AddSetting("logging", "true");
+            Setting creationDate = new Setting("dateCreated", DateTime.Now.ToString());
+            if (!creationDate.exists)
+                creationDate.addToDB();
+
+            Setting dataDir = new Setting("dataDir", folderPath);
+            if (!dataDir.exists)
+                dataDir.addToDB();
+
+            Setting logging = new Setting("logging", true.ToString());
+            if (!logging.exists)
+                logging.addToDB();
 
             //close connection
             dbConnection.Close();
         }
 
 
-        private sealed class SQLiteDatabase
+        internal sealed class SQLiteDatabase
         {
             String dbConnection;
             internal LogWriter Transactlogger = new LogWriter();
@@ -521,20 +266,6 @@ namespace network_drive_utility
             public SQLiteDatabase()
             {
                 dbConnection = "Data Source=data.s3db";
-            }
-
-            /// <summary>Two param contstructor for specgfying data directory and db file
-            /// </summary>
-            /// <param name="dataDir"></param>
-            /// <param name="inputFile"></param>
-            public SQLiteDatabase(string dataDir, string inputFile)
-            {
-                dbConnection = dataDir + "\\" + inputFile;
-                Transactlogger.logPath = dataDir;
-                Transactlogger.fileName = System.Diagnostics.Process.GetCurrentProcess().ProcessName + "_transactLog.txt";
-                ErrorLogger.logPath = dataDir;
-                ErrorLogger.fileName = System.Diagnostics.Process.GetCurrentProcess().ProcessName + "_sqlErrors.txt";
-
             }
 
             /// <summary>
@@ -559,15 +290,6 @@ namespace network_drive_utility
                 }
                 str = str.Trim().Substring(0, str.Length - 1);
                 dbConnection = str;
-            }
-
-            /// <summary>Changes the filepath of the two loggers. Note: This will NOT change the path of the database
-            /// </summary>
-            /// <param name="newPath">Directory path of where to put the logs.</param>
-            public void changeDataDir(string newPath)
-            {
-                Transactlogger.logPath = newPath;
-                ErrorLogger.logPath = newPath;
             }
 
             /// <summary>
@@ -597,7 +319,7 @@ namespace network_drive_utility
                     ErrorLogger.Write(e.ToString());
                 }
 
-                if (dt.Rows.Count != 1)
+                if (dt.Rows.Count > 1)
                     Transactlogger.Write("Returned " + dt.Rows.Count + " Row(s)");
                 return dt;
             }

@@ -1,5 +1,4 @@
-﻿using cSharpUtils;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Management;
@@ -122,13 +121,12 @@ namespace network_drive_utility
 
             try
             {
-                ManagementObjectSearcher searcher =
-                new ManagementObjectSearcher("root\\CIMV2",
-                "SELECT * FROM Win32_NetworkConnection");
+                ManagementObjectSearcher searcher = new ManagementObjectSearcher("root\\CIMV2",
+                                                                                 "SELECT * FROM Win32_NetworkConnection");
 
                 string LocalName;
                 string RemoteName;
-                string[] Domain;
+                string[] QualifiedUserName;
                 bool Persistent;
 
                 //Enumerate all network drives and store in ArrayList object.
@@ -136,13 +134,16 @@ namespace network_drive_utility
                 {
                     //get information using WMI
                     LocalName = String.Format("{0}", queryObj["LocalName"]);
-                    Persistent =  Boolean.Parse(String.Format("{0}", queryObj["Persistent"]));
-                    RemoteName =  String.Format("{0}", queryObj["RemoteName"]);
-                    Domain =  String.Format("{0}", queryObj["UserName"]).Split('\\');
+                    Persistent = Boolean.Parse(String.Format("{0}", queryObj["Persistent"]));
+                    RemoteName = String.Format("{0}", queryObj["RemoteName"]);
+                    QualifiedUserName = String.Format("{0}", queryObj["UserName"]).Split('\\');
 
                     if (driveLetter.IsMatch(LocalName))
                     {
-                        drivesFromWMI.Add(new NetworkConnection(LocalName, RemoteName, Domain[0], Domain[1], Persistent));
+                        if (QualifiedUserName.Length >= 2)
+                            drivesFromWMI.Add(new NetworkConnection(LocalName, RemoteName, QualifiedUserName[0], QualifiedUserName[1], Persistent));
+                        else
+                            drivesFromWMI.Add(new NetworkConnection(LocalName, RemoteName, "", "", Persistent));
                     }
                 }
             }
@@ -160,11 +161,11 @@ namespace network_drive_utility
         internal void unmap()
         {
             bool force = false;
-			//call unmap and return
-			int iFlags=0;
-			if(Persistent){iFlags+=CONNECT_UPDATE_PROFILE;}
-			int i = WNetCancelConnection2A(LocalName, iFlags, Convert.ToInt32(force));
-			if(i>0){throw new System.ComponentModel.Win32Exception(i);}
+            //call unmap and return
+            int iFlags = 0;
+            if (Persistent) { iFlags += CONNECT_UPDATE_PROFILE; }
+            int i = WNetCancelConnection2A(LocalName, iFlags, Convert.ToInt32(force));
+            if (i > 0) { throw new System.ComponentModel.Win32Exception(i); }
         }
 
         /// <summary>To String method.
@@ -184,7 +185,7 @@ namespace network_drive_utility
         {
             string share;
 
-            share = StringUtils.getToken(this.RemoteName, 3, '\\');
+            share = Utilities.getToken(this.RemoteName, 3, '\\');
 
             return share;
         }
@@ -196,39 +197,9 @@ namespace network_drive_utility
         {
             string server;
 
-            server = StringUtils.getToken(this.RemoteName, 2, '\\');
+            server = Utilities.getToken(this.RemoteName, 2, '\\');
 
             return server.ToUpper();
-        }
-
-        /// <summary>Attempts a DNS lookup on the host and puts the server's domain name in the field.
-        /// </summary>
-        private void DNSVerify()
-        {
-            try
-            {
-                this.Domain = Utilities.GetDomainName(Utilities.GetFQDN(this.getServerName()));
-            }
-            catch (Exception e)
-            {
-                throw new Exception("Failed to look up the host through dns. Full Details:" + Environment.NewLine + e.ToString());
-            }
-        }
-
-        /// <summary>Runs the DNSVerify method and returns a boolean value of whether the host was found or not.
-        /// </summary>
-        /// <returns>Whether the host is found or not</returns>
-        internal bool RDNSVerify()
-        {
-            try
-            {
-                DNSVerify();
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
         }
     }
 }
